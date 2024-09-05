@@ -1,3 +1,9 @@
+"""
+Archer Simpson
+5/9/24
+Trading Bot Project - Using a Binance Testnet
+"""
+
 from tradingview_ta import TA_Handler, Interval, Exchange
 import tradingview_ta
 import json
@@ -6,8 +12,9 @@ from binance.enums import *
 import time
 
 # Testnet API credentials
-API_KEY = 'rJljPrYroAaNOHIKfy0WJk2xWo9aeAjPsL5YSp2O6JQUTW8E5PU3aIz0hdeX7tO7'
-API_SECRET = 'aO0F2T3epauKW9GQGRj4Wlb8zxtCabFXHRE3e3f1nrgANl0FNTMCSkZYQfE6SzT3'
+# ARCHER'S KEYS
+API_KEY = 'QYHKtmBofXUNuHBJ352DG2jSAm9nz512wtDzteeKHvvGuFCXnJgw92xCbBiHJHfb'
+API_SECRET = 'hSjOPnrSNzwZW592nhil2sBFpvEK24szznBOGIULGClSFfoNmDoOjfUNAYO2NPES'
 
 # Base URL for Binance Testnet
 testnet_url = 'https://testnet.binance.vision/api'
@@ -16,56 +23,133 @@ testnet_url = 'https://testnet.binance.vision/api'
 client = Client(API_KEY, API_SECRET, testnet=True)
 client.API_URL = testnet_url
 
-account = client.get_account()
-print(f"Opening account balance is: ${account['balances'][4]['free']}")
+def account_info():
+    info = client.get_account()
+    return info
 
-operating_mins = 30
-last_order_buy = False
-
-for i in range(operating_mins):
-    balance = client.get_asset_balance(asset='BTC')
-    print(balance)
+def EMA_recommendation(minute):
+    """
+    Returns a bullish/bearish signal using EMA of varying lengths, calculated by trading_view_ta
+    """
     bitcoin = TA_Handler(
-        symbol="BTCUSD",
-        screener="crypto",
-        exchange="BINANCE",
-        interval=Interval.INTERVAL_1_MINUTE
-    )
+            symbol="BTCUSD",
+            screener="crypto",
+            exchange="BINANCE",
+            interval=Interval.INTERVAL_1_MINUTE
+        )
     analysis = bitcoin.get_analysis()
-    print(f"Minute {i}, EMA10: {analysis.moving_averages['COMPUTE']['EMA10']}")
-    if analysis.moving_averages['COMPUTE']['EMA10'] == "BUY" and last_order_buy is False:
-        # Place a test market order
-        symbol = 'BTCUSDT'
-        quantity = 0.001
-        last_order_buy = True
-        try:
-            order = client.create_order(
-                symbol=symbol,
-                side=SIDE_BUY,
-                type=ORDER_TYPE_MARKET,
-                quantity=quantity
-            )
-            print(f"Bought at ${analysis.indicators['open']}")
-            # print(order)
-        except Exception as e:
-            print(f"An error occurred: {e}")
-    elif analysis.moving_averages['COMPUTE']['EMA10'] == "SELL" and last_order_buy is True:
-        symbol = 'BTCUSDT'
-        quantity = 0.001
-        last_order_buy = False
+    print(f"Minute {minute}, EMA Recommendation: {analysis.moving_averages['RECOMMENDATION']}")
+    return analysis.moving_averages['RECOMMENDATION']
+
+def get_order_price(symbol):
+    trades = client.get_my_trades(symbol = symbol)
+    return trades[-1]['price']
+
+def final_sell(symbol, account_balance, holding_coin):
+    sell_amount = holding_coin
+    if sell_amount > 0:
         try:
             order = client.create_order(
                 symbol=symbol,
                 side=SIDE_SELL,
                 type=ORDER_TYPE_MARKET,
-                quantity=quantity
+                quantity=sell_amount
             )
-            # print(order)
-            print(f"Sold at ${analysis.indicators['open']}")
+            sell_price = get_order_price(symbol)
+            final_gain = float(sell_price) * sell_amount
+            closing_balance = account_balance + final_gain
+            print(f"Sold {sell_amount} of {symbol} at ${sell_price}")
         except Exception as e:
             print(f"An error occurred: {e}")
-    time.sleep(60)
-print(f"Closing account balance is: ${account['balances'][4]['free']}")
+    else:
+        closing_balance = account_balance
+    print(f"Closing Account Balance: ${closing_balance}")
+    print('-----------------------------------------------------')
+    total_profit = closing_balance - 10000
+    if total_profit >= 0:
+        print(f"TOTAL PROFIT: ${total_profit}")
+    else:
+        print(f"TOTAL PROFIT: -${abs(total_profit)}")
 
 
+def run_bot(operating_mins):
+    holding_coin = 0
+    account_balance = 10000
+    for i in range(operating_mins):
+        print(f"Currently holding {holding_coin} units of Bitcoin")
+        print(f"Account Balance: ${account_balance}")
+        symbol = 'BTCUSDT'
+        buy_recommendation = EMA_recommendation(i)
+        if buy_recommendation == "STRONG_BUY":
+            quantity = 0.002
+            # Place a test market order
+            try:
+                order = client.create_order(
+                    symbol=symbol,
+                    side=SIDE_BUY,
+                    type=ORDER_TYPE_MARKET,
+                    quantity=quantity
+                )
+                buy_price = get_order_price(symbol)
+                account_balance -= float(buy_price) * quantity
+                print(f"Bought {quantity} of {symbol} at ${buy_price}")
+            except Exception as e:
+                print(f"An error occurred: {e}")
+            holding_coin += quantity
+        elif buy_recommendation == "BUY":
+            quantity = 0.001
+            # Place a test market order
+            try:
+                order = client.create_order(
+                    symbol=symbol,
+                    side=SIDE_BUY,
+                    type=ORDER_TYPE_MARKET,
+                    quantity=quantity
+                )
+                buy_price = get_order_price(symbol)
+                account_balance -= float(buy_price) * quantity
+                print(f"Bought {quantity} of {symbol} at ${buy_price}")
+            except Exception as e:
+                print(f"An error occurred: {e}")
+            holding_coin += quantity
+        elif buy_recommendation == "SELL" and holding_coin > 0:
+            sell_amount = holding_coin * 0.5
+            # Place a test market order
+            try:
+                order = client.create_order(
+                    symbol=symbol,
+                    side=SIDE_BUY,
+                    type=ORDER_TYPE_MARKET,
+                    quantity=sell_amount
+                )
+                sell_price = get_order_price(symbol)
+                account_balance += float(sell_price) * sell_amount
+                print(f"Sold {sell_amount} of {symbol} at ${buy_price}")
+            except Exception as e:
+                print(f"An error occurred: {e}")
+            holding_coin -= sell_amount
+        elif buy_recommendation == "STRONG_SELL" and holding_coin > 0:
+            sell_amount = holding_coin
+            try:
+                order = client.create_order(
+                    symbol=symbol,
+                    side=SIDE_SELL,
+                    type=ORDER_TYPE_MARKET,
+                    quantity=sell_amount
+                )
+                sell_price = get_order_price(symbol)
+                account_balance += float(sell_price) * sell_amount
+                print(f"Sold {sell_amount} of {symbol} at ${sell_price}")
+            except Exception as e:
+                print(f"An error occurred: {e}")
+            holding_coin -= sell_amount
+        print('-----------------------------------------------------')
+        time.sleep(60)
+    final_sell(symbol, account_balance, holding_coin)
 
+
+def main():
+    minutes = 150
+    run_bot(minutes)
+
+main()
