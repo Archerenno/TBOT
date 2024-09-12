@@ -1,6 +1,6 @@
 """
 Archer Simpson
-5/9/24
+12/9/24
 Trading Bot Project - Using a Binance Testnet
 """
 
@@ -73,14 +73,15 @@ def final_sell(symbol, account_balance, holding_coin):
 
 
 def run_bot(operating_mins):
+    symbol = 'BTCUSDT'
     holding_coin = 0
-    account_balance = 10000
+    account_balance = 5000
     for i in range(operating_mins):
-        print(f"Currently holding {holding_coin} units of Bitcoin")
+        buy_price = get_order_price(symbol)
+        print(f"Currently holding {holding_coin} units of Bitcoin, valued at ${buy_price} per unit")
         print(f"Account Balance: ${account_balance}")
-        symbol = 'BTCUSDT'
         buy_recommendation = EMA_recommendation(i)
-        if buy_recommendation == "STRONG_BUY":
+        if buy_recommendation == "STRONG_BUY" and holding_coin < 0.01:
             quantity = 0.002
             # Place a test market order
             try:
@@ -96,7 +97,7 @@ def run_bot(operating_mins):
             except Exception as e:
                 print(f"An error occurred: {e}")
             holding_coin += quantity
-        elif buy_recommendation == "BUY":
+        elif buy_recommendation == "BUY" and holding_coin < 0.01:
             quantity = 0.001
             # Place a test market order
             try:
@@ -113,7 +114,10 @@ def run_bot(operating_mins):
                 print(f"An error occurred: {e}")
             holding_coin += quantity
         elif buy_recommendation == "SELL" and holding_coin > 0:
-            sell_amount = holding_coin * 0.5
+            if holding_coin > 0.002:
+                sell_amount = holding_coin * 0.5
+            else:
+                sell_amount = holding_coin
             # Place a test market order
             try:
                 order = client.create_order(
@@ -149,7 +153,17 @@ def run_bot(operating_mins):
 
 
 def main():
-    minutes = 150
+    minutes = 15
     run_bot(minutes)
+    # account_balance = account_info()['balances'][4]['free']
+    # print(f"Official API Account balance: ${float(account_balance):.2f}")
+    # symbol = 'BTCUSDT'
+    # min_buy_quantity = client.get_symbol_info(symbol)['filters'][1]
+    # print(f"Coin: {symbol}")
+    # print(f"Type: {min_buy_quantity['filterType']}")
+    # print(f"    - Minimum Coin you can hold: {min_buy_quantity['minQty']}")
+    # print(f"    - Max Coin you can hold: {min_buy_quantity['maxQty']}")
+    # print(f"    - Step Size (Minimum order amount): {min_buy_quantity['stepSize']}")
+
 
 main()
