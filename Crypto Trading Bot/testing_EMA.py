@@ -23,13 +23,35 @@ testnet_url = 'https://testnet.binance.vision/api'
 client = Client(API_KEY, API_SECRET, testnet=True)
 client.API_URL = testnet_url
 
-def print_testnet_account_balance():
+
+def print_all_available_coins():
     info = client.get_account()
-    account_balance = info['balances'][4]['free']
-    print(f"Official Testnet Account balance: ${float(account_balance):.2f}")
+    all_balances = info['balances']
+    print("This is a list of all the available coins through Binance")
+    for coin in all_balances:
+        print(coin['asset'])
 
 
-def EMA_recommendation(minute):
+def print_testnet_account_balance(symbol):
+    info = client.get_account()
+    all_balances = info['balances']
+    for coin in all_balances:
+        if coin['asset'] == symbol:
+            account_balance = coin['free']
+    print(f"Official Testnet Account balance ({symbol}): {float(account_balance):.4f}")
+
+
+def print_coin_information(symbol):
+    """NOTE: Only works for LOT_SIZE"""
+    coin_info = client.get_symbol_info(symbol)['filters'][1]
+    print(f"Coin: {symbol}")
+    print(f"Type: {coin_info['filterType']}")
+    print(f"    - Minimum Coin you can hold: {coin_info['minQty']}")
+    print(f"    - Max Coin you can hold: {coin_info['maxQty']}")
+    print(f"    - Step Size (Minimum order amount): {coin_info['stepSize']}")
+
+
+def EMA_recommendation():
     """
     Returns a bullish/bearish signal using EMA of varying lengths, calculated by trading_view_ta
     """
@@ -40,7 +62,6 @@ def EMA_recommendation(minute):
             interval=Interval.INTERVAL_1_MINUTE
         )
     analysis = bitcoin.get_analysis()
-    print(f"Minute {minute}, EMA Recommendation: {analysis.moving_averages['RECOMMENDATION']}")
     return analysis.moving_averages['RECOMMENDATION']
 
 
@@ -49,19 +70,10 @@ def get_last_order_price(symbol):
     return trades[-1]['price']
 
 
-def print_price(symbol, holding_coin):
+def get_current_price(symbol):
     price_info = client.get_all_tickers()
     curr_price = price_info[3]['price']
-    print(f"Currently holding {holding_coin} units of {symbol}, valued at ${float(curr_price):.2f} per unit")
-
-
-def print_coin_information(symbol):
-    min_buy_quantity = client.get_symbol_info(symbol)['filters'][1]
-    print(f"Coin: {symbol}")
-    print(f"Type: {min_buy_quantity['filterType']}")
-    print(f"    - Minimum Coin you can hold: {min_buy_quantity['minQty']}")
-    print(f"    - Max Coin you can hold: {min_buy_quantity['maxQty']}")
-    print(f"    - Step Size (Minimum order amount): {min_buy_quantity['stepSize']}")
+    return curr_price
 
 
 def place_market_order(symbol, sell_or_buy, order_size, account_balance):
@@ -78,10 +90,9 @@ def place_market_order(symbol, sell_or_buy, order_size, account_balance):
             )
             order_price = get_last_order_price(symbol)
             account_balance = update_account_balance(sell_or_buy, order_price, order_size, account_balance)
-            print(f"{sell_or_buy} {order_size} of {symbol} at ${order_price}")
     except Exception as e:
         print(f"An error occurred: {e}")
-    return account_balance
+    return account_balance, order_price
 
 
 def update_account_balance(sell_or_buy, order_price, order_size, account_balance):
@@ -92,23 +103,25 @@ def update_account_balance(sell_or_buy, order_price, order_size, account_balance
     return account_balance
 
 
-def print_trading_profit(closing_balance, starting_account_balance):
+def calculate_trading_profit(closing_balance, starting_account_balance):
     total_profit = closing_balance - starting_account_balance
     if total_profit >= 0:
-        print(f"TOTAL PROFIT: ${total_profit}")
+        return f"TOTAL PROFIT: ${total_profit}"
     else:
-        print(f"TOTAL PROFIT: -${abs(total_profit)}")
+        return f"TOTAL PROFIT: -${abs(total_profit)}"
 
 
 def final_sell(symbol, account_balance, holding_coin, starting_account_balance):
     sell_amount = holding_coin
     if sell_amount > 0:
-        closing_balance = place_market_order(symbol, 'SELL', sell_amount)
+        closing_balance, order_price = place_market_order(symbol, 'SELL', sell_amount)
+        print(f"Sold {sell_amount} of {symbol} at ${order_price}")
     else:
         closing_balance = account_balance
     print(f"Closing Account Balance: ${closing_balance}")
     print('-----------------------------------------------------')
-    print_trading_profit(closing_balance, starting_account_balance)
+    profit_str = calculate_trading_profit(closing_balance, starting_account_balance)
+    print(profit_str)
 
 
 def run_bot(operating_mins, symbol, starting_balance, max_holding):
@@ -116,34 +129,45 @@ def run_bot(operating_mins, symbol, starting_balance, max_holding):
     holding_coin = 0
     account_balance = starting_balance
     for i in range(operating_mins):
-        print_price(symbol, holding_coin)
+        current_price = get_current_price(symbol)
+        print(f"Currently holding {holding_coin} units of {symbol}, valued at ${float(current_price):.2f} per unit")
         print(f"Account Balance: ${account_balance}")
-        buy_recommendation = EMA_recommendation(i)
+        buy_recommendation = EMA_recommendation()
+        print(f"Minute {i}, EMA Recommendation: {buy_recommendation}")
+
         if buy_recommendation == "STRONG_BUY" and holding_coin < MAX_HOLDING_COIN:
             if holding_coin + 0.002 > MAX_HOLDING_COIN:
                 quantity = 0.01 - holding_coin
             else:
                 quantity = 0.002
-            account_balance = place_market_order(symbol, 'BUY', quantity)
+            account_balance, order_price = place_market_order(symbol, 'BUY', quantity)
+            print(f"Bought {quantity} of {symbol} at ${order_price}")
             holding_coin += quantity
+
         elif buy_recommendation == "BUY" and holding_coin < MAX_HOLDING_COIN:
             if holding_coin + 0.001 > MAX_HOLDING_COIN:
                 quantity = 0.01 - holding_coin
             else:
                 quantity = 0.001
-            account_balance = place_market_order(symbol, 'BUY', quantity)
+            account_balance, order_price = place_market_order(symbol, 'BUY', quantity)
+            print(f"Bought {quantity} of {symbol} at ${order_price}")
             holding_coin += quantity
+
         elif buy_recommendation == "SELL" and holding_coin > 0:
             if holding_coin > 0.002:
                 sell_amount = holding_coin * 0.5
             else:
                 sell_amount = holding_coin
-            account_balance = place_market_order(symbol, 'SELL', sell_amount)
+            account_balance, order_price = place_market_order(symbol, 'SELL', sell_amount)
+            print(f"Sold {quantity} of {symbol} at ${order_price}")
             holding_coin -= sell_amount
+
         elif buy_recommendation == "STRONG_SELL" and holding_coin > 0:
             sell_amount = holding_coin
-            account_balance = place_market_order(symbol, 'SELL', sell_amount)
+            account_balance, order_price = place_market_order(symbol, 'SELL', sell_amount)
+            print(f"Sold {quantity} of {symbol} at ${order_price}")
             holding_coin -= sell_amount
+            
         if holding_coin >= MAX_HOLDING_COIN:
             print(f"Max units of {symbol} has been reached at {holding_coin}")
         print('-----------------------------------------------------')
