@@ -23,9 +23,11 @@ testnet_url = 'https://testnet.binance.vision/api'
 client = Client(API_KEY, API_SECRET, testnet=True)
 client.API_URL = testnet_url
 
-def account_info():
+def print_testnet_account_balance():
     info = client.get_account()
-    return info
+    account_balance = info['balances'][4]['free']
+    print(f"Official Testnet Account balance: ${float(account_balance):.2f}")
+
 
 def EMA_recommendation(minute):
     """
@@ -41,129 +43,118 @@ def EMA_recommendation(minute):
     print(f"Minute {minute}, EMA Recommendation: {analysis.moving_averages['RECOMMENDATION']}")
     return analysis.moving_averages['RECOMMENDATION']
 
-def get_order_price(symbol):
+
+def get_last_order_price(symbol):
     trades = client.get_my_trades(symbol = symbol)
     return trades[-1]['price']
 
-def final_sell(symbol, account_balance, holding_coin):
-    sell_amount = holding_coin
-    if sell_amount > 0:
-        try:
+
+def print_price(symbol, holding_coin):
+    price_info = client.get_all_tickers()
+    curr_price = price_info[3]['price']
+    print(f"Currently holding {holding_coin} units of {symbol}, valued at ${float(curr_price):.2f} per unit")
+
+
+def print_coin_information(symbol):
+    min_buy_quantity = client.get_symbol_info(symbol)['filters'][1]
+    print(f"Coin: {symbol}")
+    print(f"Type: {min_buy_quantity['filterType']}")
+    print(f"    - Minimum Coin you can hold: {min_buy_quantity['minQty']}")
+    print(f"    - Max Coin you can hold: {min_buy_quantity['maxQty']}")
+    print(f"    - Step Size (Minimum order amount): {min_buy_quantity['stepSize']}")
+
+
+def place_market_order(symbol, sell_or_buy, order_size, account_balance):
+    if sell_or_buy == 'BUY':
+        side_type = SIDE_BUY
+    elif sell_or_buy == 'SELL':
+        side_type = SIDE_SELL
+    try:
             order = client.create_order(
                 symbol=symbol,
-                side=SIDE_SELL,
+                side=side_type,
                 type=ORDER_TYPE_MARKET,
-                quantity=sell_amount
+                quantity=order_size
             )
-            sell_price = get_order_price(symbol)
-            final_gain = float(sell_price) * sell_amount
-            closing_balance = account_balance + final_gain
-            print(f"Sold {sell_amount} of {symbol} at ${sell_price}")
-        except Exception as e:
-            print(f"An error occurred: {e}")
+            order_price = get_last_order_price(symbol)
+            account_balance = update_account_balance(sell_or_buy, order_price, order_size, account_balance)
+            print(f"{sell_or_buy} {order_size} of {symbol} at ${order_price}")
+    except Exception as e:
+        print(f"An error occurred: {e}")
+    return account_balance
+
+
+def update_account_balance(sell_or_buy, order_price, order_size, account_balance):
+    if sell_or_buy == 'SELL':
+        account_balance += float(order_price) * order_size
     else:
-        closing_balance = account_balance
-    print(f"Closing Account Balance: ${closing_balance}")
-    print('-----------------------------------------------------')
-    total_profit = closing_balance - 10000
+        account_balance -= float(order_price) * order_size
+    return account_balance
+
+
+def print_trading_profit(closing_balance, starting_account_balance):
+    total_profit = closing_balance - starting_account_balance
     if total_profit >= 0:
         print(f"TOTAL PROFIT: ${total_profit}")
     else:
         print(f"TOTAL PROFIT: -${abs(total_profit)}")
 
 
-def run_bot(operating_mins):
-    symbol = 'BTCUSDT'
+def final_sell(symbol, account_balance, holding_coin, starting_account_balance):
+    sell_amount = holding_coin
+    if sell_amount > 0:
+        closing_balance = place_market_order(symbol, 'SELL', sell_amount)
+    else:
+        closing_balance = account_balance
+    print(f"Closing Account Balance: ${closing_balance}")
+    print('-----------------------------------------------------')
+    print_trading_profit(closing_balance, starting_account_balance)
+
+
+def run_bot(operating_mins, symbol, starting_balance, max_holding):
+    MAX_HOLDING_COIN = max_holding
     holding_coin = 0
-    account_balance = 5000
+    account_balance = starting_balance
     for i in range(operating_mins):
-        buy_price = get_order_price(symbol)
-        print(f"Currently holding {holding_coin} units of Bitcoin, valued at ${buy_price} per unit")
+        print_price(symbol, holding_coin)
         print(f"Account Balance: ${account_balance}")
         buy_recommendation = EMA_recommendation(i)
-        if buy_recommendation == "STRONG_BUY" and holding_coin < 0.01:
-            quantity = 0.002
-            # Place a test market order
-            try:
-                order = client.create_order(
-                    symbol=symbol,
-                    side=SIDE_BUY,
-                    type=ORDER_TYPE_MARKET,
-                    quantity=quantity
-                )
-                buy_price = get_order_price(symbol)
-                account_balance -= float(buy_price) * quantity
-                print(f"Bought {quantity} of {symbol} at ${buy_price}")
-            except Exception as e:
-                print(f"An error occurred: {e}")
+        if buy_recommendation == "STRONG_BUY" and holding_coin < MAX_HOLDING_COIN:
+            if holding_coin + 0.002 > MAX_HOLDING_COIN:
+                quantity = 0.01 - holding_coin
+            else:
+                quantity = 0.002
+            account_balance = place_market_order(symbol, 'BUY', quantity)
             holding_coin += quantity
-        elif buy_recommendation == "BUY" and holding_coin < 0.01:
-            quantity = 0.001
-            # Place a test market order
-            try:
-                order = client.create_order(
-                    symbol=symbol,
-                    side=SIDE_BUY,
-                    type=ORDER_TYPE_MARKET,
-                    quantity=quantity
-                )
-                buy_price = get_order_price(symbol)
-                account_balance -= float(buy_price) * quantity
-                print(f"Bought {quantity} of {symbol} at ${buy_price}")
-            except Exception as e:
-                print(f"An error occurred: {e}")
+        elif buy_recommendation == "BUY" and holding_coin < MAX_HOLDING_COIN:
+            if holding_coin + 0.001 > MAX_HOLDING_COIN:
+                quantity = 0.01 - holding_coin
+            else:
+                quantity = 0.001
+            account_balance = place_market_order(symbol, 'BUY', quantity)
             holding_coin += quantity
         elif buy_recommendation == "SELL" and holding_coin > 0:
             if holding_coin > 0.002:
                 sell_amount = holding_coin * 0.5
             else:
                 sell_amount = holding_coin
-            # Place a test market order
-            try:
-                order = client.create_order(
-                    symbol=symbol,
-                    side=SIDE_BUY,
-                    type=ORDER_TYPE_MARKET,
-                    quantity=sell_amount
-                )
-                sell_price = get_order_price(symbol)
-                account_balance += float(sell_price) * sell_amount
-                print(f"Sold {sell_amount} of {symbol} at ${buy_price}")
-            except Exception as e:
-                print(f"An error occurred: {e}")
+            account_balance = place_market_order(symbol, 'SELL', sell_amount)
             holding_coin -= sell_amount
         elif buy_recommendation == "STRONG_SELL" and holding_coin > 0:
             sell_amount = holding_coin
-            try:
-                order = client.create_order(
-                    symbol=symbol,
-                    side=SIDE_SELL,
-                    type=ORDER_TYPE_MARKET,
-                    quantity=sell_amount
-                )
-                sell_price = get_order_price(symbol)
-                account_balance += float(sell_price) * sell_amount
-                print(f"Sold {sell_amount} of {symbol} at ${sell_price}")
-            except Exception as e:
-                print(f"An error occurred: {e}")
+            account_balance = place_market_order(symbol, 'SELL', sell_amount)
             holding_coin -= sell_amount
+        if holding_coin >= MAX_HOLDING_COIN:
+            print(f"Max units of {symbol} has been reached at {holding_coin}")
         print('-----------------------------------------------------')
         time.sleep(60)
-    final_sell(symbol, account_balance, holding_coin)
+    final_sell(symbol, account_balance, holding_coin, starting_balance)
 
 
 def main():
-    minutes = 15
-    run_bot(minutes)
-    # account_balance = account_info()['balances'][4]['free']
-    # print(f"Official API Account balance: ${float(account_balance):.2f}")
-    # symbol = 'BTCUSDT'
-    # min_buy_quantity = client.get_symbol_info(symbol)['filters'][1]
-    # print(f"Coin: {symbol}")
-    # print(f"Type: {min_buy_quantity['filterType']}")
-    # print(f"    - Minimum Coin you can hold: {min_buy_quantity['minQty']}")
-    # print(f"    - Max Coin you can hold: {min_buy_quantity['maxQty']}")
-    # print(f"    - Step Size (Minimum order amount): {min_buy_quantity['stepSize']}")
+    symbol = 'BTCUSDT'
+    minutes = 5
+    run_bot(minutes, symbol, 5000, 0.01)
 
 
 main()
