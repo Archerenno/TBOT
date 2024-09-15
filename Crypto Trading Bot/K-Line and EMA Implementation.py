@@ -1,6 +1,6 @@
 """
 Archer Simpson
-12/9/24
+15/9/24
 Trading Bot Project - Using a Binance Testnet
 """
 
