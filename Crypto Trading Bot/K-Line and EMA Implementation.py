@@ -9,6 +9,7 @@ import tradingview_ta
 import json
 from binance.client import Client
 from binance.enums import *
+import binance
 import time
 
 # Testnet API credentials
@@ -56,17 +57,17 @@ def print_coin_information(symbol):
     print(f"    - Step Size (Minimum order amount): {coin_info['stepSize']}")
 
 
-def EMA_recommendation():
+def EMA_recommendation(symbol_for_anal):
     """
     Returns a bullish/bearish signal using EMA of varying lengths, calculated by trading_view_ta
     """
-    bitcoin = TA_Handler(
-            symbol="BTCUSD",
+    coin = TA_Handler(
+            symbol=symbol_for_anal,
             screener="crypto",
             exchange="BINANCE",
             interval=Interval.INTERVAL_1_MINUTE
         )
-    analysis = bitcoin.get_analysis()
+    analysis = coin.get_analysis()
     return analysis.moving_averages['RECOMMENDATION']
 
 
@@ -145,21 +146,27 @@ def get_current_price(symbol):
     curr_price = price_info[3]['price']
     return curr_price
 
+def round_to_step_size(symbol, amount):
+    stepsize = client.get_symbol_info(symbol)['filters'][1]['stepsize']
+    rounded_amount = binance.helpers.round_step_size(amount, stepsize)
+    return rounded_amount
+
 
 def place_market_order(symbol, sell_or_buy, order_size, account_balance):
     if sell_or_buy == 'BUY':
         side_type = SIDE_BUY
     elif sell_or_buy == 'SELL':
         side_type = SIDE_SELL
+    quantity = round_to_step_size(symbol, order_size)
     try:
             order = client.create_order(
                 symbol=symbol,
                 side=side_type,
                 type=ORDER_TYPE_MARKET,
-                quantity=order_size
+                quantity=quantity
             )
             order_price = get_last_order_price(symbol)
-            account_balance = update_account_balance(sell_or_buy, order_price, order_size, account_balance)
+            account_balance = update_account_balance(sell_or_buy, order_price, quantity, account_balance)
     except Exception as e:
         print(f"An error occurred: {e}")
     return account_balance, order_price
@@ -202,7 +209,7 @@ def run_bot(operating_mins, symbol, starting_balance, max_holding, candle_index,
         current_price = get_current_price(symbol)
         print(f"Currently holding {holding_coin} units of {symbol}, valued at ${float(current_price):.2f} per unit")
         print(f"Account Balance: ${account_balance}")
-        buy_recommendation = EMA_recommendation()
+        buy_recommendation = EMA_recommendation(symbol)
         candle_recommendation = K_line_recommendation(candle_initialisation, candle_index)
         print(f"Minute {i}, EMA Recommendation: {buy_recommendation}, K-line Recommendation: {candle_recommendation}")
 
@@ -252,6 +259,5 @@ def main():
     candle_index = -5
     candle_initialisation = K_line_initialisation(candle_index)
     run_bot(minutes, symbol, 5000, 0.01, candle_index, candle_initialisation)
-
 
 main()
