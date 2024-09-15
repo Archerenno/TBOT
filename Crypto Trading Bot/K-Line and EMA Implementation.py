@@ -147,7 +147,7 @@ def get_current_price(symbol):
     return curr_price
 
 def round_to_step_size(symbol, amount):
-    stepsize = client.get_symbol_info(symbol)['filters'][1]['stepsize']
+    stepsize = client.get_symbol_info(symbol)['filters'][1]['stepSize']
     rounded_amount = binance.helpers.round_step_size(amount, stepsize)
     return rounded_amount
 
@@ -191,7 +191,7 @@ def calculate_trading_profit(closing_balance, starting_account_balance):
 def final_sell(symbol, account_balance, holding_coin, starting_account_balance):
     sell_amount = holding_coin
     if sell_amount > 0:
-        closing_balance, order_price = place_market_order(symbol, 'SELL', sell_amount)
+        closing_balance, order_price = place_market_order(symbol, 'SELL', sell_amount, account_balance)
         print(f"Sold {sell_amount} of {symbol} at ${order_price}")
     else:
         closing_balance = account_balance
@@ -255,9 +255,11 @@ def run_bot(operating_mins, symbol, starting_balance, max_holding, candle_index,
 
 def main():
     symbol = 'BTCUSDT'
-    minutes = 60
+    minutes = 120
     candle_index = -5
+    starting_balance = 5000
+    max_coin = 0.01
     candle_initialisation = K_line_initialisation(candle_index)
-    run_bot(minutes, symbol, 5000, 0.01, candle_index, candle_initialisation)
+    run_bot(minutes, symbol, starting_balance, max_coin, candle_index, candle_initialisation)
 
 main()
