@@ -1,12 +1,11 @@
 """
 Archer Simpson
-15/9/24
+21/9/24
 Trading Bot Project - Using a Binance Testnet
 """
 
 from tradingview_ta import TA_Handler, Interval, Exchange
 import tradingview_ta
-import json
 from binance.client import Client
 from binance.enums import *
 import binance
@@ -24,13 +23,14 @@ testnet_url = 'https://testnet.binance.vision/api'
 client = Client(API_KEY, API_SECRET, testnet=True)
 client.API_URL = testnet_url
 
-#Set global constants
+#Set global constants, defining the different K line recommendations as integers
 K_LINE_STRONG_BUY = 2
 K_LINE_BUY = 1 
 K_LINE_STRONG_SELL = -2 
 K_LINE_SELL = -1
 
 def print_all_available_coins():
+    """Prints the tickers of all available coins through the Binance Exchange."""
     info = client.get_account()
     all_balances = info['balances']
     print("This is a list of all the available coins through Binance")
@@ -39,16 +39,21 @@ def print_all_available_coins():
 
 
 def print_testnet_account_balance(symbol):
+    """Prints the testnet account balance (this is different from the balance printed in the run bot loop)"""
     info = client.get_account()
     all_balances = info['balances']
+    # This for loop searches all of the balances for every symbol until it finds the one specified
     for coin in all_balances:
         if coin['asset'] == symbol:
+            # The 'free' key in the dictionary says how much of the coin/currency you have available to use/spend
             account_balance = coin['free']
     print(f"Official Testnet Account balance ({symbol}): {float(account_balance):.4f}")
 
 
 def print_coin_information(symbol):
     """NOTE: Only works for LOT_SIZE"""
+    # The indexing of [1] at the end of the statement below is section that specifies the filertype LOT_SIZE.
+    # Change this indexing if you want other filter types
     coin_info = client.get_symbol_info(symbol)['filters'][1]
     print(f"Coin: {symbol}")
     print(f"Type: {coin_info['filterType']}")
@@ -71,7 +76,7 @@ def EMA_recommendation(symbol_for_anal):
     return analysis.moving_averages['RECOMMENDATION']
 
 
-def K_line_initialisation(candle_index):
+def K_line_initialisation(candle_index, ticker):
     """
     The amount of Candles that it analyses must be an odd Integer
     Returns an integer representation of bullish/bearish signals based on the current market candles
@@ -81,7 +86,7 @@ def K_line_initialisation(candle_index):
     -2 = Very Bearish 
     """
     #Pulls K-line information from API 
-    candles = client.get_klines(symbol = 'BTCUSDT', interval = client.KLINE_INTERVAL_1MINUTE)
+    candles = client.get_klines(symbol = ticker, interval = client.KLINE_INTERVAL_1MINUTE)
 
     #initialises the current_close 
     open_time, open_price, high_price, low_price, close_price, volume, close_time, base_asset_volume, number_of_trades, executed_buy_volume, executed_buy_base_volume, ignore = candles[candle_index]
@@ -101,11 +106,11 @@ def K_line_initialisation(candle_index):
     return signals
 
 
-def K_line_recommendation(signals, candle_index):
+def K_line_recommendation(signals, candle_index, ticker):
     #converting Bool signal into Integer representation 
     buy_signal_counter = 0 
 
-    candles = client.get_klines(symbol = 'BTCUSDT', interval = client.KLINE_INTERVAL_1MINUTE)
+    candles = client.get_klines(symbol = ticker, interval = client.KLINE_INTERVAL_1MINUTE)
     for signal in signals:
         if signal == True:
             buy_signal_counter += 1 
@@ -129,34 +134,44 @@ def K_line_recommendation(signals, candle_index):
     else:
         signals.append(False)
 
-    #DELETE THIS PRINT AS THIS IS FOR KODI TO VERIFY ITS WORKING AS IT SHOULD 
-    #TESTING PURPOSES ONLY!!!
-    print(signals)
-
     #return final recommendation
     return k_line_signal
 
+
 def get_last_order_price(symbol):
+    """Get the coin price from the last order placed. Returns a string"""
     trades = client.get_my_trades(symbol = symbol)
     return trades[-1]['price']
 
 
 def get_current_price(symbol):
+    """Get the current price of the coin at the time function is called. Returns a string"""
     price_info = client.get_all_tickers()
-    curr_price = price_info[3]['price']
+    for coin in price_info:
+        if coin['symbol'] == symbol:
+            curr_price = coin['price']
     return curr_price
 
+
 def round_to_step_size(symbol, amount):
+    """
+    Rounds the coin buy amount to the number of decimal places associated with the step size. This prevents the accuracy of the buy
+    amount from getting so small that it causes a crash
+    """
+    # Index [1] here just refers to LOT_SIZE filter_type
     stepsize = client.get_symbol_info(symbol)['filters'][1]['stepSize']
     rounded_amount = binance.helpers.round_step_size(amount, stepsize)
     return rounded_amount
 
 
 def place_market_order(symbol, sell_or_buy, order_size, account_balance):
+    """Places a market order"""
+    # Changes the side parameter that will be used to place an order based on whether we want to sell or buy
     if sell_or_buy == 'BUY':
         side_type = SIDE_BUY
     elif sell_or_buy == 'SELL':
         side_type = SIDE_SELL
+    # Rounds the buy quantity to the nearest step size to prevent crashing
     quantity = round_to_step_size(symbol, order_size)
     try:
             order = client.create_order(
@@ -173,6 +188,7 @@ def place_market_order(symbol, sell_or_buy, order_size, account_balance):
 
 
 def update_account_balance(sell_or_buy, order_price, order_size, account_balance):
+    """Updates the account balance (the one that is displayed during run-time)"""
     if sell_or_buy == 'SELL':
         account_balance += float(order_price) * order_size
     else:
@@ -181,6 +197,7 @@ def update_account_balance(sell_or_buy, order_price, order_size, account_balance
 
 
 def calculate_trading_profit(closing_balance, starting_account_balance):
+    """Calculates the profit made after the bot has been run for the specified time"""
     total_profit = closing_balance - starting_account_balance
     if total_profit >= 0:
         return f"TOTAL PROFIT: ${total_profit}"
@@ -189,77 +206,86 @@ def calculate_trading_profit(closing_balance, starting_account_balance):
 
 
 def final_sell(symbol, account_balance, holding_coin, starting_account_balance):
+    """Once the run timer on the bot hits zero, all currently held coin is sold so that the total profit can then be calculated"""
     sell_amount = holding_coin
+    # If coin is still being held at the end of the run-time sell everything and update the account balance
     if sell_amount > 0:
         closing_balance, order_price = place_market_order(symbol, 'SELL', sell_amount, account_balance)
         print(f"Sold {sell_amount} of {symbol} at ${order_price}")
     else:
         closing_balance = account_balance
     print(f"Closing Account Balance: ${closing_balance}")
-    print('-----------------------------------------------------')
+    print("\n")
+    print('------------------------------------------------------------------------')
+    print("\n")
     profit_str = calculate_trading_profit(closing_balance, starting_account_balance)
     print(profit_str)
 
 
 def run_bot(operating_mins, symbol, starting_balance, max_holding, candle_index, candle_initialisation):
-    MAX_HOLDING_COIN = max_holding
+    MAX_HOLDING_VALUE = max_holding
     holding_coin = 0
     account_balance = starting_balance
     for i in range(operating_mins):
         current_price = get_current_price(symbol)
+        max_holding_coin = MAX_HOLDING_VALUE / float(current_price)
+        holding_value = holding_coin * float(current_price)
         print(f"Currently holding {holding_coin} units of {symbol}, valued at ${float(current_price):.2f} per unit")
         print(f"Account Balance: ${account_balance}")
         buy_recommendation = EMA_recommendation(symbol)
-        candle_recommendation = K_line_recommendation(candle_initialisation, candle_index)
+        candle_recommendation = K_line_recommendation(candle_initialisation, candle_index, symbol)
         print(f"Minute {i}, EMA Recommendation: {buy_recommendation}, K-line Recommendation: {candle_recommendation}")
 
-        if buy_recommendation == "STRONG_BUY" and holding_coin < MAX_HOLDING_COIN and candle_recommendation == K_LINE_STRONG_BUY:
-            if holding_coin + 0.002 > MAX_HOLDING_COIN:
-                quantity = 0.01 - holding_coin
+        if buy_recommendation == "STRONG_BUY" and holding_value < MAX_HOLDING_VALUE and candle_recommendation == K_LINE_STRONG_BUY:
+            buy_quantity_value = MAX_HOLDING_VALUE * 0.2
+            if holding_value + buy_quantity_value > MAX_HOLDING_VALUE:
+                coin_quantity = max_holding_coin - holding_coin
             else:
-                quantity = 0.002
-            account_balance, order_price = place_market_order(symbol, 'BUY', quantity, account_balance)
-            print(f"Bought {quantity} of {symbol} at ${order_price}")
-            holding_coin += quantity
+                coin_quantity = buy_quantity_value / float(get_current_price(symbol))
+            account_balance, order_price = place_market_order(symbol, 'BUY', coin_quantity, account_balance)
+            print(f"Bought {coin_quantity} of {symbol} at ${order_price}")
+            holding_coin += coin_quantity
 
-        elif buy_recommendation == "BUY" and holding_coin < MAX_HOLDING_COIN and candle_recommendation == K_LINE_BUY:
-            if holding_coin + 0.001 > MAX_HOLDING_COIN:
-                quantity = 0.01 - holding_coin
+        elif buy_recommendation == "BUY" and holding_value < MAX_HOLDING_VALUE and candle_recommendation == K_LINE_BUY:
+            buy_quantity_value = MAX_HOLDING_VALUE * 0.1
+            if holding_value + buy_quantity_value > MAX_HOLDING_VALUE:
+                coin_quantity = max_holding_coin - holding_coin
             else:
-                quantity = 0.001
-            account_balance, order_price = place_market_order(symbol, 'BUY', quantity, account_balance)
-            print(f"Bought {quantity} of {symbol} at ${order_price}")
-            holding_coin += quantity
+                coin_quantity = buy_quantity_value / float(get_current_price(symbol))
+            if coin_quantity > 0:
+                account_balance, order_price = place_market_order(symbol, 'BUY', coin_quantity, account_balance)
+            print(f"Bought {coin_quantity} of {symbol} at ${order_price}")
+            holding_coin += coin_quantity
 
         elif buy_recommendation == "SELL" and holding_coin > 0 and candle_recommendation == K_LINE_SELL:
-            if holding_coin > 0.002:
-                sell_amount = holding_coin * 0.5
-            else:
-                sell_amount = holding_coin
+            sell_amount = holding_coin * 0.5
             account_balance, order_price = place_market_order(symbol, 'SELL', sell_amount, account_balance)
-            print(f"Sold {quantity} of {symbol} at ${order_price}")
+            print(f"Sold {sell_amount} of {symbol} at ${order_price}")
             holding_coin -= sell_amount
 
         elif buy_recommendation == "STRONG_SELL" and holding_coin > 0 and candle_recommendation == K_LINE_STRONG_SELL:
             sell_amount = holding_coin
             account_balance, order_price = place_market_order(symbol, 'SELL', sell_amount, account_balance)
-            print(f"Sold {quantity} of {symbol} at ${order_price}")
+            print(f"Sold {sell_amount} of {symbol} at ${order_price}")
             holding_coin -= sell_amount
             
-        if holding_coin >= MAX_HOLDING_COIN:
-            print(f"Max units of {symbol} has been reached at {holding_coin}")
-        print('-----------------------------------------------------')
+        if holding_value >= MAX_HOLDING_VALUE:
+            print(f"Max units of {symbol} has been reached at {max_holding_coin}")
+        
+        print("\n")
+        print('------------------------------------------------------------------------')
+        print("\n")
         time.sleep(60)
     final_sell(symbol, account_balance, holding_coin, starting_balance)
 
 
 def main():
-    symbol = 'BTCUSDT'
-    minutes = 120
+    symbol = 'ETHUSDT'
+    minutes = 30
     candle_index = -5
     starting_balance = 5000
-    max_coin = 0.01
-    candle_initialisation = K_line_initialisation(candle_index)
-    run_bot(minutes, symbol, starting_balance, max_coin, candle_index, candle_initialisation)
+    max_holdings = 1000
+    candle_initialisation = K_line_initialisation(candle_index, symbol)
+    run_bot(minutes, symbol, starting_balance, max_holdings, candle_index, candle_initialisation)
 
 main()
