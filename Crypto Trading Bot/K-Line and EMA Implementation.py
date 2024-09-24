@@ -1,6 +1,6 @@
 """
 Archer Simpson
-21/9/24
+24/9/24
 Trading Bot Project - Using a Binance Testnet
 """
 
@@ -23,7 +23,7 @@ testnet_url = 'https://testnet.binance.vision/api'
 client = Client(API_KEY, API_SECRET, testnet=True)
 client.API_URL = testnet_url
 
-#Set global constants, defining the different K line recommendations as integers
+# recommendation_dict = {'STRONG_BUY': 2, 'BUY': 1, 'NEUTRAL': 0, 'SELL': 1, 'STRONG_SELL':2}
 K_LINE_STRONG_BUY = 2
 K_LINE_BUY = 1 
 K_LINE_STRONG_SELL = -2 
@@ -236,34 +236,70 @@ def run_bot(operating_mins, symbol, starting_balance, max_holding, candle_index,
         candle_recommendation = K_line_recommendation(candle_initialisation, candle_index, symbol)
         print(f"Minute {i}, EMA Recommendation: {buy_recommendation}, K-line Recommendation: {candle_recommendation}")
 
-        if buy_recommendation == "STRONG_BUY" and holding_value < MAX_HOLDING_VALUE and candle_recommendation == K_LINE_STRONG_BUY:
-            buy_quantity_value = MAX_HOLDING_VALUE * 0.2
-            if holding_value + buy_quantity_value > MAX_HOLDING_VALUE:
-                coin_quantity = max_holding_coin - holding_coin
-            else:
-                coin_quantity = buy_quantity_value / float(get_current_price(symbol))
+
+        if buy_recommendation == "STRONG_BUY" and holding_value < MAX_HOLDING_VALUE:
+
+            if candle_recommendation == K_LINE_STRONG_BUY:
+                buy_quantity_value = MAX_HOLDING_VALUE * 0.3
+                if holding_value + buy_quantity_value > MAX_HOLDING_VALUE:
+                    coin_quantity = max_holding_coin - holding_coin
+                else:
+                    coin_quantity = buy_quantity_value / float(get_current_price(symbol))
+
+            elif candle_recommendation == K_LINE_BUY:
+                buy_quantity_value = MAX_HOLDING_VALUE * 0.2
+                if holding_value + buy_quantity_value > MAX_HOLDING_VALUE:
+                    coin_quantity = max_holding_coin - holding_coin
+                else:
+                    coin_quantity = buy_quantity_value / float(get_current_price(symbol))
             account_balance, order_price = place_market_order(symbol, 'BUY', coin_quantity, account_balance)
             print(f"Bought {coin_quantity} of {symbol} at ${order_price}")
             holding_coin += coin_quantity
 
-        elif buy_recommendation == "BUY" and holding_value < MAX_HOLDING_VALUE and candle_recommendation == K_LINE_BUY:
-            buy_quantity_value = MAX_HOLDING_VALUE * 0.1
-            if holding_value + buy_quantity_value > MAX_HOLDING_VALUE:
-                coin_quantity = max_holding_coin - holding_coin
-            else:
-                coin_quantity = buy_quantity_value / float(get_current_price(symbol))
+
+        elif buy_recommendation == "BUY" and holding_value < MAX_HOLDING_VALUE:
+
+            if candle_recommendation == K_LINE_STRONG_BUY:
+                buy_quantity_value = MAX_HOLDING_VALUE * 0.2
+                if holding_value + buy_quantity_value > MAX_HOLDING_VALUE:
+                    coin_quantity = max_holding_coin - holding_coin
+                else:
+                    coin_quantity = buy_quantity_value / float(get_current_price(symbol))
+
+            elif candle_recommendation == K_LINE_BUY:
+                buy_quantity_value = MAX_HOLDING_VALUE * 0.1
+                if holding_value + buy_quantity_value > MAX_HOLDING_VALUE:
+                    coin_quantity = max_holding_coin - holding_coin
+                else:
+                    coin_quantity = buy_quantity_value / float(get_current_price(symbol))
+
             if coin_quantity > 0:
                 account_balance, order_price = place_market_order(symbol, 'BUY', coin_quantity, account_balance)
             print(f"Bought {coin_quantity} of {symbol} at ${order_price}")
             holding_coin += coin_quantity
 
-        elif buy_recommendation == "SELL" and holding_coin > 0 and candle_recommendation == K_LINE_SELL:
-            sell_amount = holding_coin * 0.5
+
+        elif buy_recommendation == "SELL" and holding_coin > 0:
+
+            if candle_recommendation == K_LINE_STRONG_SELL:
+                sell_amount = holding_coin * 0.75
+
+            if candle_recommendation == K_LINE_SELL:
+                sell_amount = holding_coin * 0.5
+
             account_balance, order_price = place_market_order(symbol, 'SELL', sell_amount, account_balance)
             print(f"Sold {sell_amount} of {symbol} at ${order_price}")
             holding_coin -= sell_amount
 
-        elif buy_recommendation == "STRONG_SELL" and holding_coin > 0 and candle_recommendation == K_LINE_STRONG_SELL:
+
+        elif buy_recommendation == "STRONG_SELL" and holding_coin > 0:
+
+            if candle_recommendation == K_LINE_STRONG_SELL:
+                sell_amount = holding_coin
+
+            if candle_recommendation == K_LINE_SELL:
+                sell_amount = holding_coin * 0.75
+            
             sell_amount = holding_coin
             account_balance, order_price = place_market_order(symbol, 'SELL', sell_amount, account_balance)
             print(f"Sold {sell_amount} of {symbol} at ${order_price}")
@@ -280,12 +316,13 @@ def run_bot(operating_mins, symbol, starting_balance, max_holding, candle_index,
 
 
 def main():
-    symbol = 'ETHUSDT'
-    minutes = 30
+    symbol = 'APTUSDT'
+    minutes = 60
     candle_index = -5
     starting_balance = 5000
-    max_holdings = 1000
+    max_holdings = 500
     candle_initialisation = K_line_initialisation(candle_index, symbol)
     run_bot(minutes, symbol, starting_balance, max_holdings, candle_index, candle_initialisation)
+
 
 main()
