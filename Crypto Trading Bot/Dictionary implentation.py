@@ -1,6 +1,6 @@
 """
-Archer Simpson
-24/9/24
+Archer Simpson & Kodi Sinclair
+26/9/24
 Trading Bot Project - Using a Binance Testnet
 """
 
@@ -13,8 +13,14 @@ import time
 
 # Testnet API credentials
 # KODI'S KEYS
-API_KEY = 'rJljPrYroAaNOHIKfy0WJk2xWo9aeAjPsL5YSp2O6JQUTW8E5PU3aIz0hdeX7tO7'
-API_SECRET = 'aO0F2T3epauKW9GQGRj4Wlb8zxtCabFXHRE3e3f1nrgANl0FNTMCSkZYQfE6SzT3'
+# API_KEY = 'rJljPrYroAaNOHIKfy0WJk2xWo9aeAjPsL5YSp2O6JQUTW8E5PU3aIz0hdeX7tO7'
+# API_SECRET = 'aO0F2T3epauKW9GQGRj4Wlb8zxtCabFXHRE3e3f1nrgANl0FNTMCSkZYQfE6SzT3'
+
+
+
+# ARCHERS KEY'S
+API_KEY = 'QYHKtmBofXUNuHBJ352DG2jSAm9nz512wtDzteeKHvvGuFCXnJgw92xCbBiHJHfb'
+API_SECRET = 'hSjOPnrSNzwZW592nhil2sBFpvEK24szznBOGIULGClSFfoNmDoOjfUNAYO2NPES'
 
 # Base URL for Binance Testnet
 testnet_url = 'https://testnet.binance.vision/api'
@@ -241,17 +247,12 @@ def run_bot(operating_mins, symbol, starting_balance, max_holding, candle_index,
 
             if candle_recommendation == 2:
                 buy_quantity_value = MAX_HOLDING_VALUE * 0.3
-                if holding_value + buy_quantity_value > MAX_HOLDING_VALUE:
-                    coin_quantity = max_holding_coin - holding_coin
-                else:
-                    coin_quantity = buy_quantity_value / float(get_current_price(symbol))
+                coin_quantity = buy_quantity_value / float(get_current_price(symbol))
 
             elif candle_recommendation == 1:
                 buy_quantity_value = MAX_HOLDING_VALUE * 0.2
-                if holding_value + buy_quantity_value > MAX_HOLDING_VALUE:
-                    coin_quantity = max_holding_coin - holding_coin
-                else:
-                    coin_quantity = buy_quantity_value / float(get_current_price(symbol))
+                coin_quantity = buy_quantity_value / float(get_current_price(symbol))
+
             account_balance, order_price = place_market_order(symbol, 'BUY', coin_quantity, account_balance)
             print(f"Bought {coin_quantity} of {symbol} at ${order_price}")
             holding_coin += coin_quantity
@@ -261,17 +262,11 @@ def run_bot(operating_mins, symbol, starting_balance, max_holding, candle_index,
 
             if candle_recommendation == 2:
                 buy_quantity_value = MAX_HOLDING_VALUE * 0.2
-                if holding_value + buy_quantity_value > MAX_HOLDING_VALUE:
-                    coin_quantity = max_holding_coin - holding_coin
-                else:
-                    coin_quantity = buy_quantity_value / float(get_current_price(symbol))
+                coin_quantity = buy_quantity_value / float(get_current_price(symbol))
 
             elif candle_recommendation == 1:
                 buy_quantity_value = MAX_HOLDING_VALUE * 0.1
-                if holding_value + buy_quantity_value > MAX_HOLDING_VALUE:
-                    coin_quantity = max_holding_coin - holding_coin
-                else:
-                    coin_quantity = buy_quantity_value / float(get_current_price(symbol))
+                coin_quantity = buy_quantity_value / float(get_current_price(symbol))
 
             if coin_quantity > 0:
                 account_balance, order_price = place_market_order(symbol, 'BUY', coin_quantity, account_balance)
@@ -317,13 +312,14 @@ def run_bot(operating_mins, symbol, starting_balance, max_holding, candle_index,
 
 
 def main():
-    symbol = 'APTUSDT'
+    symbol = 'CELOUSDT'
     minutes = 60
-    candle_index = -5
+    candle_index = -3
     starting_balance = 5000
-    max_holdings = 500
+    max_holdings = 1000
     candle_initialisation = K_line_initialisation(candle_index, symbol)
     run_bot(minutes, symbol, starting_balance, max_holdings, candle_index, candle_initialisation)
+    # final_sell(symbol, 4800, 310.4, 5000)
 
 
 main()
