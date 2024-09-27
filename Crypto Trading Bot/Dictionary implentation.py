@@ -13,11 +13,11 @@ import time
 
 # Testnet API credentials
 # KODI'S KEYS
-API_KEY = 'rJljPrYroAaNOHIKfy0WJk2xWo9aeAjPsL5YSp2O6JQUTW8E5PU3aIz0hdeX7tO7'
-API_SECRET = 'aO0F2T3epauKW9GQGRj4Wlb8zxtCabFXHRE3e3f1nrgANl0FNTMCSkZYQfE6SzT3'
+# API_KEY = 'rJljPrYroAaNOHIKfy0WJk2xWo9aeAjPsL5YSp2O6JQUTW8E5PU3aIz0hdeX7tO7'
+# API_SECRET = 'aO0F2T3epauKW9GQGRj4Wlb8zxtCabFXHRE3e3f1nrgANl0FNTMCSkZYQfE6SzT3'
 
 
-
+print("Test")
 # ARCHERS KEY'S
 # API_KEY = 'QYHKtmBofXUNuHBJ352DG2jSAm9nz512wtDzteeKHvvGuFCXnJgw92xCbBiHJHfb'
 # API_SECRET = 'hSjOPnrSNzwZW592nhil2sBFpvEK24szznBOGIULGClSFfoNmDoOjfUNAYO2NPES'
@@ -321,5 +321,5 @@ def main():
     run_bot(minutes, symbol, starting_balance, max_holdings, candle_index, candle_initialisation)
     # final_sell(symbol, 4800, 310.4, 5000)
 
-
+#DId this make it ?? 
 main()
