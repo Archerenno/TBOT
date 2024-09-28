@@ -260,7 +260,7 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, cand
     onehr_ago_coin_prices = None
     # This for loop will loop every minute
     for i in range(operating_mins):
-        if (i % 1 == 0) and (i > 0):
+        if (i % 60 == 0) and (i > 0):
             closing_balance = final_sell(symbol, account_balance, holding_coin, starting_balance)
             onehr_ago_coin_prices = current_coin_prices
             current_coin_prices = get_usdt_coins_prices()
