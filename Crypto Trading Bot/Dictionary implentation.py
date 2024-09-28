@@ -17,7 +17,6 @@ import time
 # API_SECRET = 'aO0F2T3epauKW9GQGRj4Wlb8zxtCabFXHRE3e3f1nrgANl0FNTMCSkZYQfE6SzT3'
 
 
-print("Test")
 # ARCHERS KEY'S
 API_KEY = 'QYHKtmBofXUNuHBJ352DG2jSAm9nz512wtDzteeKHvvGuFCXnJgw92xCbBiHJHfb'
 API_SECRET = 'hSjOPnrSNzwZW592nhil2sBFpvEK24szznBOGIULGClSFfoNmDoOjfUNAYO2NPES'
@@ -81,6 +80,7 @@ def EMA_recommendation(symbol_for_anal):
     analysis = coin.get_analysis()    
 
     return recommendation_dict[analysis.moving_averages['RECOMMENDATION']]
+    # This is the code used to return a single EMA buy signal: return analysis.moving_averages['COMPUTE']['EMA10']
 
 
 def K_line_initialisation(candle_index, ticker):
@@ -233,6 +233,7 @@ def run_bot(operating_mins, symbol, starting_balance, max_holding, candle_index,
     MAX_HOLDING_VALUE = max_holding
     holding_coin = 0
     account_balance = starting_balance
+    # This for loop will loop every minute
     for i in range(operating_mins):
         current_price = get_current_price(symbol)
         max_holding_coin = MAX_HOLDING_VALUE / float(current_price)
@@ -246,11 +247,31 @@ def run_bot(operating_mins, symbol, starting_balance, max_holding, candle_index,
         if buy_recommendation == 2 and holding_value < MAX_HOLDING_VALUE:
 
             if candle_recommendation == 2:
+                # If both EMA and K-Line are showing STRONG_BUY signals, then the bot buys at 30% of max holdings
                 buy_quantity_value = MAX_HOLDING_VALUE * 0.3
                 coin_quantity = buy_quantity_value / float(get_current_price(symbol))
 
             elif candle_recommendation == 1:
+                # If EMA is STRONG_BUY and K-Line is BUY, the bot buys at 20% of max holding
                 buy_quantity_value = MAX_HOLDING_VALUE * 0.2
+                coin_quantity = buy_quantity_value / float(get_current_price(symbol))
+
+            account_balance, order_price = place_market_order(symbol, 'BUY', coin_quantity, account_balance)
+            print(f"Bought {coin_quantity} of {symbol} at ${order_price}")
+            # The amount of coin that is being held with the newly bought coin
+            holding_coin += coin_quantity
+
+
+        elif buy_recommendation == 1 and holding_value < MAX_HOLDING_VALUE:
+            
+            if candle_recommendation == 2:
+                 # If EMA is BUY and K-Line is STRONG_BUY, the bot buys at 20% of max holding
+                buy_quantity_value = MAX_HOLDING_VALUE * 0.2
+                coin_quantity = buy_quantity_value / float(get_current_price(symbol))
+
+            elif candle_recommendation == 1:
+                # If both EMA and K-Line are showing BUY signals, then the bot buys at 10% of max holdings
+                buy_quantity_value = MAX_HOLDING_VALUE * 0.1
                 coin_quantity = buy_quantity_value / float(get_current_price(symbol))
 
             account_balance, order_price = place_market_order(symbol, 'BUY', coin_quantity, account_balance)
@@ -258,28 +279,14 @@ def run_bot(operating_mins, symbol, starting_balance, max_holding, candle_index,
             holding_coin += coin_quantity
 
 
-        elif buy_recommendation == 1 and holding_value < MAX_HOLDING_VALUE:
-
-            if candle_recommendation == 2:
-                buy_quantity_value = MAX_HOLDING_VALUE * 0.2
-                coin_quantity = buy_quantity_value / float(get_current_price(symbol))
-
-            elif candle_recommendation == 1:
-                buy_quantity_value = MAX_HOLDING_VALUE * 0.1
-                coin_quantity = buy_quantity_value / float(get_current_price(symbol))
-
-            if coin_quantity > 0:
-                account_balance, order_price = place_market_order(symbol, 'BUY', coin_quantity, account_balance)
-            print(f"Bought {coin_quantity} of {symbol} at ${order_price}")
-            holding_coin += coin_quantity
-
-
         elif buy_recommendation == "SELL" and holding_coin > 0:
 
             if candle_recommendation == -2 :
+                # If EMA is SELL and K-Line is STRONG_SELL, the bot sells at 75% of max holding
                 sell_amount = holding_coin * 0.75
 
             if candle_recommendation == -1:
+                # If EMA is SELL and K-Line is also SELL, the bot sells at 50% of max holding
                 sell_amount = holding_coin * 0.5
 
             account_balance, order_price = place_market_order(symbol, 'SELL', sell_amount, account_balance)
@@ -290,9 +297,11 @@ def run_bot(operating_mins, symbol, starting_balance, max_holding, candle_index,
         elif buy_recommendation == -2 and holding_coin > 0:
 
             if candle_recommendation == -2:
+                # If both EMA and K-Line are showing STRONG_SELL signals, then the bot sells all holdings
                 sell_amount = holding_coin
 
             if candle_recommendation == -1:
+                # If EMA is STRONG_SELL and K-Line is SELL, the bot sells at 75% of max holding
                 sell_amount = holding_coin * 0.75
             
             sell_amount = holding_coin
@@ -307,19 +316,22 @@ def run_bot(operating_mins, symbol, starting_balance, max_holding, candle_index,
         print("\n")
         print('------------------------------------------------------------------------')
         print("\n")
+        # The purpose of this sleep statement is to wait until new data is available through the API which is after 60 seconds
         time.sleep(60)
+    # Sell all remaining coins at the end of the time period
     final_sell(symbol, account_balance, holding_coin, starting_balance)
 
 
 def main():
     symbol = 'OPUSDT'
-    minutes = 3602
+    minutes = 360
     candle_index = -3
     starting_balance = 5000
     max_holdings = 1000
-    candle_initialisation = K_line_initialisation(candle_index, symbol)
-    run_bot(minutes, symbol, starting_balance, max_holdings, candle_index, candle_initialisation)
+    # candle_initialisation = K_line_initialisation(candle_index, symbol)
+    # run_bot(minutes, symbol, starting_balance, max_holdings, candle_index, candle_initialisation)
     # final_sell(symbol, 4800, 310.4, 5000)
-
-#DId this make it ?? 
+    ema = EMA_recommendation(symbol)
+    print(ema)
+ 
 main()

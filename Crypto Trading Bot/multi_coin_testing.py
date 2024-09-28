@@ -10,6 +10,7 @@ from binance.client import Client
 from binance.enums import *
 import binance
 import time
+import numpy as np
 
 # Testnet API credentials
 # ARCHERS'S KEYS
@@ -57,17 +58,29 @@ def print_coin_information(symbol):
     print(f"    - Step Size (Minimum order amount): {coin_info['stepSize']}")
 
 
-def print_all_coins_info():
-    coins = client.get_ticker()
-    usdt_coins = [(coin['symbol'], coin['priceChangePercent'], coin['volume']) for coin in coins if coin['symbol'].endswith('USDT')]
-    price_change_percent = lambda x: x[1]
-    sorted_usdt_coin = sorted(usdt_coins, key=price_change_percent)
-    print(sorted_usdt_coin)
-
+def all_usdt_coins_prices():
+    # coins = client.get_ticker()
+    # usdt_coins = [(coin['symbol'], coin['priceChangePercent'], coin['volume']) for coin in coins if coin['symbol'].endswith('USDT')]
+    # price_change_percent = lambda x: x[1]
+    # sorted_usdt_coin = sorted(usdt_coins, key=price_change_percent)
+    # print(sorted_usdt_coin)
+    coins = client.get_all_tickers()
+    usdt_coins = [float(coin['price']) for coin in coins if coin['symbol'].endswith('USDT')]
+    array_usdt_coins = np.array(usdt_coins)
+    return array_usdt_coins
 
 
 def main():
-    print_all_coins_info()
+    price1 = all_usdt_coins_prices()
+    time.sleep(3600)
+    price2 = all_usdt_coins_prices()
+    price_change_percent = ((price2 - price1)/ price1) * 100
+    max_increase_index = np.argmax(price_change_percent)
+    print(price_change_percent[max_increase_index])
+    coins = client.get_all_tickers() 
+    usdt_coins = [coin['symbol'] for coin in coins if coin['symbol'].endswith('USDT')]
+    print(usdt_coins[max_increase_index])
+    print(np.sort(price_change_percent))
 
 
 main()
