@@ -29,7 +29,7 @@ testnet_url = 'https://testnet.binance.vision/api'
 client = Client(API_KEY, API_SECRET, testnet=True)
 client.API_URL = testnet_url
 
-recommendation_dict = {'STRONG_BUY': 2, 'BUY': 1, 'NEUTRAL': 0, 'SELL': 1, 'STRONG_SELL':2}
+recommendation_dict = {'STRONG_BUY': 2, 'BUY': 1, 'NEUTRAL': 0, 'SELL': -1, 'STRONG_SELL':-2}
 # K_LINE_STRONG_BUY = 2
 # K_LINE_BUY = 1 
 # K_LINE_STRONG_SELL = -2 
@@ -270,11 +270,11 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, cand
             holding_coin = 0
             account_balance = closing_balance
         current_price = get_current_price(symbol)
-        max_holding_coin = MAX_HOLDING_VALUE / float(current_price)
         holding_value = holding_coin * float(current_price)
         
         buy_recommendation = EMA_recommendation(symbol)
         candle_recommendation = K_line_recommendation(candle_initialisation, candle_index, symbol)
+
         print(f"Minute {i}, EMA Recommendation: {buy_recommendation}, K-line Recommendation: {candle_recommendation}")
 
 
@@ -284,16 +284,19 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, cand
                 # If both EMA and K-Line are showing STRONG_BUY signals, then the bot buys at 30% of max holdings
                 buy_quantity_value = MAX_HOLDING_VALUE * 0.3
                 coin_quantity = buy_quantity_value / float(get_current_price(symbol))
+                account_balance, order_price = place_market_order(symbol, 'BUY', coin_quantity, account_balance)
+                print(f"Bought {coin_quantity} of {symbol} at ${order_price}")
+                # The amount of coin that is being held with the newly bought coin
+                holding_coin += coin_quantity
 
             elif candle_recommendation == 1:
                 # If EMA is STRONG_BUY and K-Line is BUY, the bot buys at 20% of max holding
                 buy_quantity_value = MAX_HOLDING_VALUE * 0.2
                 coin_quantity = buy_quantity_value / float(get_current_price(symbol))
-
-            account_balance, order_price = place_market_order(symbol, 'BUY', coin_quantity, account_balance)
-            print(f"Bought {coin_quantity} of {symbol} at ${order_price}")
-            # The amount of coin that is being held with the newly bought coin
-            holding_coin += coin_quantity
+                account_balance, order_price = place_market_order(symbol, 'BUY', coin_quantity, account_balance)
+                print(f"Bought {coin_quantity} of {symbol} at ${order_price}")
+                # The amount of coin that is being held with the newly bought coin
+                holding_coin += coin_quantity
 
 
         elif buy_recommendation == 1 and holding_value < MAX_HOLDING_VALUE:
@@ -302,30 +305,36 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, cand
                  # If EMA is BUY and K-Line is STRONG_BUY, the bot buys at 20% of max holding
                 buy_quantity_value = MAX_HOLDING_VALUE * 0.2
                 coin_quantity = buy_quantity_value / float(get_current_price(symbol))
+                account_balance, order_price = place_market_order(symbol, 'BUY', coin_quantity, account_balance)
+                print(f"Bought {coin_quantity} of {symbol} at ${order_price}")
+                holding_coin += coin_quantity
 
             elif candle_recommendation == 1:
                 # If both EMA and K-Line are showing BUY signals, then the bot buys at 10% of max holdings
                 buy_quantity_value = MAX_HOLDING_VALUE * 0.1
                 coin_quantity = buy_quantity_value / float(get_current_price(symbol))
+                account_balance, order_price = place_market_order(symbol, 'BUY', coin_quantity, account_balance)
+                print(f"Bought {coin_quantity} of {symbol} at ${order_price}")
+                holding_coin += coin_quantity
 
-            account_balance, order_price = place_market_order(symbol, 'BUY', coin_quantity, account_balance)
-            print(f"Bought {coin_quantity} of {symbol} at ${order_price}")
-            holding_coin += coin_quantity
 
-
-        elif buy_recommendation == "SELL" and holding_coin > 0:
+        elif buy_recommendation == -1 and holding_coin > 0:
 
             if candle_recommendation == -2 :
                 # If EMA is SELL and K-Line is STRONG_SELL, the bot sells at 75% of max holding
                 sell_amount = holding_coin * 0.75
+                account_balance, order_price = place_market_order(symbol, 'SELL', sell_amount, account_balance)
+                print(f"Sold {sell_amount} of {symbol} at ${order_price}")
+                holding_coin -= sell_amount
 
             if candle_recommendation == -1:
                 # If EMA is SELL and K-Line is also SELL, the bot sells at 50% of max holding
                 sell_amount = holding_coin * 0.5
+                account_balance, order_price = place_market_order(symbol, 'SELL', sell_amount, account_balance)
+                print(f"Sold {sell_amount} of {symbol} at ${order_price}")
+                holding_coin -= sell_amount
 
-            account_balance, order_price = place_market_order(symbol, 'SELL', sell_amount, account_balance)
-            print(f"Sold {sell_amount} of {symbol} at ${order_price}")
-            holding_coin -= sell_amount
+
 
 
         elif buy_recommendation == -2 and holding_coin > 0:
@@ -333,19 +342,23 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, cand
             if candle_recommendation == -2:
                 # If both EMA and K-Line are showing STRONG_SELL signals, then the bot sells all holdings
                 sell_amount = holding_coin
+                account_balance, order_price = place_market_order(symbol, 'SELL', sell_amount, account_balance)
+                print(f"Sold {sell_amount} of {symbol} at ${order_price}")
+                holding_coin -= sell_amount
 
             if candle_recommendation == -1:
                 # If EMA is STRONG_SELL and K-Line is SELL, the bot sells at 75% of max holding
                 sell_amount = holding_coin * 0.75
+                account_balance, order_price = place_market_order(symbol, 'SELL', sell_amount, account_balance)
+                print(f"Sold {sell_amount} of {symbol} at ${order_price}")
+                holding_coin -= sell_amount
             
-            sell_amount = holding_coin
-            account_balance, order_price = place_market_order(symbol, 'SELL', sell_amount, account_balance)
-            print(f"Sold {sell_amount} of {symbol} at ${order_price}")
-            holding_coin -= sell_amount
+
             
         if holding_value >= MAX_HOLDING_VALUE:
-            print(f"Max units of {symbol} has been reached at {max_holding_coin}")
-        print(f"Currently holding {holding_coin} units of {symbol}, valued at ${float(current_price):.2f} per unit")
+            print(f"Max units of {symbol} has been reached at {holding_coin}. Currently valued at ${float(current_price):.2f} per unit")
+        else:
+            print(f"Currently holding {holding_coin} units of {symbol}, valued at ${float(current_price):.2f} per unit")
         print(f"Account Balance: ${account_balance}")
         print("\n")
         print('------------------------------------------------------------------------')
@@ -357,11 +370,11 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, cand
 
 
 def main():
-    symbol = 'OPUSDT'
+    symbol = 'CKBUSDT'
     minutes = 3
     candle_index = -3
     starting_balance = 5000
-    max_holdings = 1000
+    max_holdings = 100
     candle_initialisation = K_line_initialisation(candle_index, symbol)
     run_bot(minutes, symbol, starting_balance, max_holdings, candle_index, candle_initialisation)
  
