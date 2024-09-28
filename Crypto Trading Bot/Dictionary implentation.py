@@ -10,6 +10,7 @@ from binance.client import Client
 from binance.enums import *
 import binance
 import time
+import numpy as np
 
 # Testnet API credentials
 # KODI'S KEYS
@@ -227,14 +228,47 @@ def final_sell(symbol, account_balance, holding_coin, starting_account_balance):
     print("\n")
     profit_str = calculate_trading_profit(closing_balance, starting_account_balance)
     print(profit_str)
+    return closing_balance
 
 
-def run_bot(operating_mins, symbol, starting_balance, max_holding, candle_index, candle_initialisation):
+def get_usdt_coins_prices():
+    coins = client.get_all_tickers()
+    usdt_coins = [float(coin['price']) for coin in coins if coin['symbol'].endswith('USDT')]
+    array_usdt_coins = np.array(usdt_coins)
+    return array_usdt_coins
+
+def get_usdt_coin_symbols():
+    coins = client.get_all_tickers() 
+    usdt_coins = [coin['symbol'] for coin in coins if coin['symbol'].endswith('USDT')]
+    return usdt_coins
+
+def greatest_price_increase(initial, final):
+    price_change_percent = ((final - initial)/ initial) * 100
+    max_increase_index = np.argmax(price_change_percent)
+    greatest_percent_value = price_change_percent[max_increase_index]
+    usdt_coins = get_usdt_coin_symbols()
+    greatest_percent_coin = usdt_coins[max_increase_index]
+    return (greatest_percent_coin, greatest_percent_value)
+
+
+def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, candle_index, candle_initialisation):
+    symbol = starting_symbol
     MAX_HOLDING_VALUE = max_holding
     holding_coin = 0
     account_balance = starting_balance
+    current_coin_prices = get_usdt_coins_prices()
+    onehr_ago_coin_prices = None
     # This for loop will loop every minute
     for i in range(operating_mins):
+        if (i % 1 == 0) and (i > 0):
+            closing_balance = final_sell(symbol, account_balance, holding_coin, starting_balance)
+            onehr_ago_coin_prices = current_coin_prices
+            current_coin_prices = get_usdt_coins_prices()
+            best_coin, onehour_percent_increase = greatest_price_increase(onehr_ago_coin_prices, current_coin_prices)
+            symbol = best_coin
+            print(f"Coin changing to: {symbol}. 1 Hour Price Change: {onehour_percent_increase:.2f}")
+            holding_coin = 0
+            account_balance = closing_balance
         current_price = get_current_price(symbol)
         max_holding_coin = MAX_HOLDING_VALUE / float(current_price)
         holding_value = holding_coin * float(current_price)
@@ -324,14 +358,11 @@ def run_bot(operating_mins, symbol, starting_balance, max_holding, candle_index,
 
 def main():
     symbol = 'OPUSDT'
-    minutes = 360
+    minutes = 3
     candle_index = -3
     starting_balance = 5000
     max_holdings = 1000
-    # candle_initialisation = K_line_initialisation(candle_index, symbol)
-    # run_bot(minutes, symbol, starting_balance, max_holdings, candle_index, candle_initialisation)
-    # final_sell(symbol, 4800, 310.4, 5000)
-    ema = EMA_recommendation(symbol)
-    print(ema)
+    candle_initialisation = K_line_initialisation(candle_index, symbol)
+    run_bot(minutes, symbol, starting_balance, max_holdings, candle_index, candle_initialisation)
  
 main()

@@ -25,7 +25,7 @@ client = Client(API_KEY, API_SECRET, testnet=True)
 client.API_URL = testnet_url
 
 
-def print_all_available_coins():
+def print_all_available_assets():
     """Prints the tickers of all available coins through the Binance Exchange."""
     info = client.get_account()
     all_balances = info['balances']
@@ -58,29 +58,32 @@ def print_coin_information(symbol):
     print(f"    - Step Size (Minimum order amount): {coin_info['stepSize']}")
 
 
-def all_usdt_coins_prices():
-    # coins = client.get_ticker()
-    # usdt_coins = [(coin['symbol'], coin['priceChangePercent'], coin['volume']) for coin in coins if coin['symbol'].endswith('USDT')]
-    # price_change_percent = lambda x: x[1]
-    # sorted_usdt_coin = sorted(usdt_coins, key=price_change_percent)
-    # print(sorted_usdt_coin)
+def get_usdt_coins_prices():
     coins = client.get_all_tickers()
     usdt_coins = [float(coin['price']) for coin in coins if coin['symbol'].endswith('USDT')]
     array_usdt_coins = np.array(usdt_coins)
     return array_usdt_coins
 
-
-def main():
-    price1 = all_usdt_coins_prices()
-    time.sleep(3600)
-    price2 = all_usdt_coins_prices()
-    price_change_percent = ((price2 - price1)/ price1) * 100
-    max_increase_index = np.argmax(price_change_percent)
-    print(price_change_percent[max_increase_index])
+def get_usdt_coin_symbols():
     coins = client.get_all_tickers() 
     usdt_coins = [coin['symbol'] for coin in coins if coin['symbol'].endswith('USDT')]
-    print(usdt_coins[max_increase_index])
-    print(np.sort(price_change_percent))
+    return usdt_coins
+
+def greatest_price_increase(initial, final):
+    price_change_percent = ((final - initial)/ initial) * 100
+    max_increase_index = np.argmax(price_change_percent)
+    greatest_percent_value = price_change_percent[max_increase_index]
+    usdt_coins = get_usdt_coin_symbols()
+    greatest_percent_coin = usdt_coins[max_increase_index]
+    return (greatest_percent_coin, greatest_percent_value)
+
+
+def main():
+    price1 = get_usdt_coins_prices()
+    time.sleep(60)
+    price2 = get_usdt_coins_prices()
+    print(greatest_price_increase(price1, price2))
+    
 
 
 main()
