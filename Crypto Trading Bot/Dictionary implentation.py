@@ -1,6 +1,6 @@
 """
 Archer Simpson & Kodi Sinclair
-26/9/24
+30/9/24
 Trading Bot Project - Using a Binance Testnet
 """
 
@@ -30,10 +30,6 @@ client = Client(API_KEY, API_SECRET, testnet=True)
 client.API_URL = testnet_url
 
 recommendation_dict = {'STRONG_BUY': 2, 'BUY': 1, 'NEUTRAL': 0, 'SELL': -1, 'STRONG_SELL':-2}
-# K_LINE_STRONG_BUY = 2
-# K_LINE_BUY = 1 
-# K_LINE_STRONG_SELL = -2 
-# K_LINE_SELL = -1
 
 def print_all_available_coins():
     """Prints the tickers of all available coins through the Binance Exchange."""
@@ -60,12 +56,19 @@ def print_coin_information(symbol):
     """NOTE: Only works for LOT_SIZE"""
     # The indexing of [1] at the end of the statement below is section that specifies the filertype LOT_SIZE.
     # Change this indexing if you want other filter types
-    coin_info = client.get_symbol_info(symbol)['filters'][1]
+    coin_info = client.get_symbol_info(symbol)['filters']
+    lot_coin_info = coin_info[1]
     print(f"Coin: {symbol}")
-    print(f"Type: {coin_info['filterType']}")
-    print(f"    - Minimum Coin you can hold: {coin_info['minQty']}")
-    print(f"    - Max Coin you can hold: {coin_info['maxQty']}")
-    print(f"    - Step Size (Minimum order amount): {coin_info['stepSize']}")
+    print(f"Type: {lot_coin_info['filterType']}")
+    print(f"    - Minimum Coin you can hold: {lot_coin_info['minQty']}")
+    print(f"    - Max Coin you can hold: {lot_coin_info['maxQty']}")
+    print(f"    - Step Size (Minimum order amount): {lot_coin_info['stepSize']}")
+
+    notional_coin_info = coin_info[6]
+    print(f"Type: {notional_coin_info['filterType']}")
+    print(f"    - Minimum order value: {notional_coin_info['minNotional']}")
+    print(f"    - Max order value: {notional_coin_info['maxNotional']}")
+    print(f"    - Average price over X minutes used to find notional: {notional_coin_info['avgPriceMins']}")
 
 
 def EMA_recommendation(symbol_for_anal):
@@ -173,13 +176,30 @@ def round_to_step_size(symbol, amount):
 
 
 def valid_order_amount(quantity, symbol):
-    lot_size_coin_details = client.get_symbol_info(symbol)['filters'][1]
+    order_valid = False
+
+    coin_details = client.get_symbol_info(symbol)['filters']
+    lot_size_coin_details = coin_details[1]
     min_quantity = lot_size_coin_details['minQty']
-    max_quantity = lot_size_coin_details['minQty']
-    if float(max_quantity) > quantity > float(min_quantity):
-        order_valid = True
+    max_quantity = lot_size_coin_details['maxQty']
+    if quantity > float(min_quantity) and quantity < float(max_quantity):
+        lot_order_valid = True
     else:
-        order_valid = False
+        lot_order_valid = False
+
+    notional_size_coin_details = coin_details[6]
+    min_notional = notional_size_coin_details['minNotional']
+    max_notional = notional_size_coin_details['maxNotional']
+    average_price = client.get_avg_price(symbol=symbol)['price']
+    notional_value = float(average_price) * quantity
+    if notional_value > float(min_notional) and notional_value < float(max_notional):
+        notional_order_valid = True
+    else:
+        notional_order_valid = False
+
+    if notional_order_valid is True and lot_order_valid is True:
+        order_valid = True
+
     return order_valid
 
 
@@ -279,6 +299,7 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, cand
     onehr_ago_coin_prices = None
     # This for loop will loop every minute
     for i in range(operating_mins):
+
         if (i % 60 == 0) and (i > 0):
             closing_balance = final_sell(symbol, account_balance, holding_coin, starting_balance)
             onehr_ago_coin_prices = current_coin_prices
@@ -288,6 +309,7 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, cand
             print(f"Coin changing to: {symbol}. 1 Hour Price Change: {onehour_percent_increase:.2f}")
             holding_coin = 0
             account_balance = closing_balance
+
         current_price = get_current_price(symbol)
         holding_value = holding_coin * float(current_price)
         
@@ -404,9 +426,9 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, cand
 
             
         if holding_value >= MAX_HOLDING_VALUE:
-            print(f"Max units of {symbol} has been reached at {holding_coin}. Currently valued at ${float(current_price):.2f} per unit")
+            print(f"Max units of {symbol} has been reached at {holding_coin}. Currently valued at ${float(current_price)} per unit")
         else:
-            print(f"Currently holding {holding_coin} units of {symbol}, valued at ${float(current_price):.4f} per unit")
+            print(f"Currently holding {holding_coin} units of {symbol}, valued at ${float(current_price)} per unit")
         print(f"Account Balance: ${account_balance}")
         print("\n")
         print('------------------------------------------------------------------------')
@@ -418,12 +440,13 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, cand
 
 
 def main():
-    symbol = 'DIAUSDT'
-    minutes = 3
+    symbol = 'BTCUSDT'
+    minutes = 60
     candle_index = -3
     starting_balance = 5000
     max_holdings = 1000
     candle_initialisation = K_line_initialisation(candle_index, symbol)
     run_bot(minutes, symbol, starting_balance, max_holdings, candle_index, candle_initialisation)
+    
  
 main()
