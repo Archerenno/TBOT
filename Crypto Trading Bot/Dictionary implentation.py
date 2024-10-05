@@ -83,8 +83,9 @@ def EMA_recommendation(symbol_for_anal):
         )
     analysis = coin.get_analysis()    
 
-    return recommendation_dict[analysis.moving_averages['RECOMMENDATION']]
-    # This is the code used to return a single EMA buy signal: return analysis.moving_averages['COMPUTE']['EMA10']
+    # return recommendation_dict[analysis.moving_averages['RECOMMENDATION']]
+    return recommendation_dict[analysis.moving_averages['COMPUTE']['SMA50']]
+    # return analysis.moving_averages['COMPUTE']
 
 
 def K_line_initialisation(candle_index, ticker):
@@ -440,13 +441,13 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, cand
 
 
 def main():
-    symbol = 'BTCUSDT'
-    minutes = 60
+    symbol = 'DIAUSDT'
+    minutes = 59
     candle_index = -3
     starting_balance = 5000
     max_holdings = 1000
     candle_initialisation = K_line_initialisation(candle_index, symbol)
     run_bot(minutes, symbol, starting_balance, max_holdings, candle_index, candle_initialisation)
-    
+
  
 main()
