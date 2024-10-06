@@ -84,7 +84,7 @@ def EMA_recommendation(symbol_for_anal):
     analysis = coin.get_analysis()    
 
     # return recommendation_dict[analysis.moving_averages['RECOMMENDATION']]
-    return recommendation_dict[analysis.moving_averages['COMPUTE']['SMA50']]
+    return recommendation_dict[analysis.moving_averages['COMPUTE']['Ichimoku']]
     # return analysis.moving_averages['COMPUTE']
 
 
@@ -441,7 +441,7 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, cand
 
 
 def main():
-    symbol = 'DIAUSDT'
+    symbol = 'USTCUSDT'
     minutes = 59
     candle_index = -3
     starting_balance = 5000
