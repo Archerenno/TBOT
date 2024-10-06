@@ -91,8 +91,31 @@ def EMA_recommendation(symbol_for_anal):
     analysis = coin.get_analysis()    
 
     # return recommendation_dict[analysis.moving_averages['RECOMMENDATION']]
-    return recommendation_dict[analysis.moving_averages['COMPUTE']['Ichimoku']]
-    # return analysis.moving_averages['COMPUTE']
+    ema20 = analysis.moving_averages['COMPUTE']['EMA20']
+    ema30 = analysis.moving_averages['COMPUTE']['EMA30']
+    sma20 = analysis.moving_averages['COMPUTE']['SMA20']
+    ema_list = [ema20, ema30, sma20]
+    print(ema_list)
+    ema_signal = compute_ema_from_indicators(ema_list)
+    return recommendation_dict[ema_signal]
+
+
+def compute_ema_from_indicators(ema_list):
+    signal = 0
+    for ema in ema_list:
+        if ema == "BUY":
+            signal += 1
+        elif ema == "SELL":
+            signal -= 1
+    if signal == 3:
+        return "STRONG_BUY"
+    elif signal == 1:
+        return "BUY"
+    elif signal == -1:
+        return "SELL"
+    elif signal == -3:
+        return "STRONG_SELL"
+
 
 
 def K_line_initialisation(candle_index, ticker):
@@ -539,7 +562,7 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, k_li
 
 
 def main():
-    symbol = 'OPUSDT'
+    symbol = 'ARKUSDT'
     minutes = 5
     candle_index = -3
     starting_balance = 5000
