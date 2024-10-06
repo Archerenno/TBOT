@@ -19,8 +19,8 @@ import numpy as np
 
 
 # ARCHERS KEY'S
-API_KEY = 'QYHKtmBofXUNuHBJ352DG2jSAm9nz512wtDzteeKHvvGuFCXnJgw92xCbBiHJHfb'
-API_SECRET = 'hSjOPnrSNzwZW592nhil2sBFpvEK24szznBOGIULGClSFfoNmDoOjfUNAYO2NPES'
+# API_KEY = 'QYHKtmBofXUNuHBJ352DG2jSAm9nz512wtDzteeKHvvGuFCXnJgw92xCbBiHJHfb'
+# API_SECRET = 'hSjOPnrSNzwZW592nhil2sBFpvEK24szznBOGIULGClSFfoNmDoOjfUNAYO2NPES'
 
 # Base URL for Binance Testnet
 testnet_url = 'https://testnet.binance.vision/api'
@@ -30,6 +30,10 @@ client = Client(API_KEY, API_SECRET, testnet=True)
 client.API_URL = testnet_url
 
 recommendation_dict = {'STRONG_BUY': 2, 'BUY': 1, 'NEUTRAL': 0, 'SELL': -1, 'STRONG_SELL':-2}
+# K_LINE_STRONG_BUY = 2
+# K_LINE_BUY = 1 
+# K_LINE_STRONG_SELL = -2 
+# K_LINE_SELL = -1
 
 def print_all_available_coins():
     """Prints the tickers of all available coins through the Binance Exchange."""
@@ -75,6 +79,9 @@ def EMA_recommendation(symbol_for_anal):
     """
     Returns a bullish/bearish signal using EMA of varying lengths, calculated by trading_view_ta
     """
+
+    #NOTE DO WE WANT TO MODULARISE THE BELOW AS IT WILL BE OCCURING IN RSI AND MACD
+
     coin = TA_Handler(
             symbol=symbol_for_anal,
             screener="crypto",
@@ -148,6 +155,77 @@ def K_line_recommendation(signals, candle_index, ticker):
 
     #return final recommendation
     return k_line_signal
+
+def RSI(symbol_for_anal):
+    """gets the RSI value and returns 'STRONG_BUY', 'BUY', 'STRONG_SELL', 'SELL', 'NEUTRAL' """
+    
+    # Initialises RSI value to Neutral
+    RSI_signal = recommendation_dict["NEUTRAL"]
+
+    coin = TA_Handler(
+            symbol=symbol_for_anal,
+            screener="crypto",
+            exchange="BINANCE",
+            interval=Interval.INTERVAL_1_MINUTE
+        )
+    
+    analysis = coin.get_analysis()   
+    RSI_value =  analysis.indicators["RSI"]
+
+    if RSI_value <= 30 and RSI_value >= 20:
+        RSI_signal = recommendation_dict["BUY"]
+
+    elif RSI_value < 20:
+        RSI_signal = recommendation_dict["STRONG_BUY"]
+
+    elif RSI_value >= 75 and RSI_value < 80:
+        RSI_signal = recommendation_dict["SELL"]
+
+    elif RSI_value >= 80:
+        RSI_signal = recommendation_dict["STRONG_SELL"]
+
+    return RSI_signal
+
+def MACD(symbol_for_anal):
+    coin = TA_Handler(
+            symbol=symbol_for_anal,
+            screener="crypto",
+            exchange="BINANCE",
+            interval=Interval.INTERVAL_1_MINUTE
+        )
+    
+    analysis = coin.get_analysis()
+
+    curr_macd_macd = analysis.indicators["MACD.macd"]
+    curr_macd_signal = analysis.indicators["MACD.signal"]
+
+    return curr_macd_macd, curr_macd_signal
+    
+def MACD_analysis(curr_macd_macd, curr_macd_signal, prev_macd_macd, prev_macd_signal):
+    """Going to continuously look at and see if cross over occurs but will only give 'BUY' or 'SELL' signals  """
+
+    if prev_macd_macd < prev_macd_signal:
+        prev_signal_above = True
+    else:
+        prev_signal_above = False
+
+
+    if curr_macd_macd < curr_macd_signal:
+        curr_signal_above = True
+    else:
+        curr_signal_above = False
+
+    if prev_signal_above is True and curr_signal_above is False:
+        return recommendation_dict["BUY"]
+    elif prev_signal_above is False and curr_signal_above is True:
+        return recommendation_dict["SELL"]
+    
+    return None
+
+
+
+    
+
 
 
 def get_last_order_price(symbol):
@@ -296,9 +374,14 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, cand
     MAX_HOLDING_VALUE = max_holding
     holding_coin = 0
     account_balance = starting_balance
+
     current_coin_prices = get_usdt_coins_prices()
     onehr_ago_coin_prices = None
     # This for loop will loop every minute
+
+    candle_index = k_line_list[0]
+    candle_initialisation = k_line_list[1]
+
     for i in range(operating_mins):
 
         if (i % 60 == 0) and (i > 0):
@@ -311,12 +394,27 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, cand
             holding_coin = 0
             account_balance = closing_balance
 
+
+        if i == 0:
+            prev_macd_macd, prev_macd_signal = MACD(symbol)
+            print("initialising MACD Values")
+        elif i == 1 :
+            curr_macd_macd, curr_macd_signal = MACD(symbol)
+            print("Initialising MACD Values")
+        else:
+            prev_macd_macd = curr_macd_macd
+            prev_macd_signal = curr_macd_signal
+            curr_macd_macd, curr_macd_signal = MACD(symbol)
+            MACD_recommendation = MACD_analysis(curr_macd_macd, curr_macd_signal, prev_macd_macd, prev_macd_signal)
+            print(f'The MACD Recommendation is: {MACD_recommendation}')
+
+
         current_price = get_current_price(symbol)
+        max_holding_coin = MAX_HOLDING_VALUE / float(current_price)
         holding_value = holding_coin * float(current_price)
         
         buy_recommendation = EMA_recommendation(symbol)
         candle_recommendation = K_line_recommendation(candle_initialisation, candle_index, symbol)
-
         print(f"Minute {i}, EMA Recommendation: {buy_recommendation}, K-line Recommendation: {candle_recommendation}")
 
 
@@ -339,6 +437,7 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, cand
                 # If EMA is STRONG_BUY and K-Line is BUY, the bot buys at 20% of max holding
                 buy_quantity_value = MAX_HOLDING_VALUE * 0.2
                 coin_quantity = buy_quantity_value / float(get_current_price(symbol))
+
                 account_balance, order_price = place_market_order(symbol, 'BUY', coin_quantity, account_balance)
                 if order_price != -1:
                     print(f"Bought {coin_quantity} of {symbol} at ${order_price}")
@@ -346,11 +445,11 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, cand
                 else:
                     print("Buy order is too small!")
                 # The amount of coin that is being held with the newly bought coin
-                
+
 
 
         elif buy_recommendation == 1 and holding_value < MAX_HOLDING_VALUE:
-            
+
             if candle_recommendation == 2:
                  # If EMA is BUY and K-Line is STRONG_BUY, the bot buys at 20% of max holding
                 buy_quantity_value = MAX_HOLDING_VALUE * 0.2
@@ -367,6 +466,8 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, cand
                 # If both EMA and K-Line are showing BUY signals, then the bot buys at 10% of max holdings
                 buy_quantity_value = MAX_HOLDING_VALUE * 0.1
                 coin_quantity = buy_quantity_value / float(get_current_price(symbol))
+
+            if coin_quantity > 0:
                 account_balance, order_price = place_market_order(symbol, 'BUY', coin_quantity, account_balance)
                 if order_price != -1:
                     print(f"Bought {coin_quantity} of {symbol} at ${order_price}")
@@ -375,8 +476,7 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, cand
                     print("Buy order is too small!")
                 
 
-
-        elif buy_recommendation == -1 and holding_coin > 0:
+        elif buy_recommendation == "SELL" and holding_coin > 0:
 
             if candle_recommendation == -2 :
                 # If EMA is SELL and K-Line is STRONG_SELL, the bot sells at 75% of max holding
@@ -441,13 +541,23 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, cand
 
 
 def main():
+<<<<<<< HEAD
     symbol = 'USTCUSDT'
     minutes = 59
+=======
+    symbol = 'OPUSDT'
+    minutes = 120
+>>>>>>> 7bc827cc61873ae0a87ecf323867a2af3654ade5
     candle_index = -3
     starting_balance = 5000
     max_holdings = 1000
     candle_initialisation = K_line_initialisation(candle_index, symbol)
-    run_bot(minutes, symbol, starting_balance, max_holdings, candle_index, candle_initialisation)
+    k_line_list = [candle_index, candle_initialisation]
+    
 
- 
+    run_bot(minutes, symbol, starting_balance, max_holdings, k_line_list)
+    # final_sell(symbol, 4800, 310.4, 5000)
+
 main()
+
+
