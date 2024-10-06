@@ -19,8 +19,8 @@ import numpy as np
 
 
 # ARCHERS KEY'S
-# API_KEY = 'QYHKtmBofXUNuHBJ352DG2jSAm9nz512wtDzteeKHvvGuFCXnJgw92xCbBiHJHfb'
-# API_SECRET = 'hSjOPnrSNzwZW592nhil2sBFpvEK24szznBOGIULGClSFfoNmDoOjfUNAYO2NPES'
+API_KEY = 'QYHKtmBofXUNuHBJ352DG2jSAm9nz512wtDzteeKHvvGuFCXnJgw92xCbBiHJHfb'
+API_SECRET = 'hSjOPnrSNzwZW592nhil2sBFpvEK24szznBOGIULGClSFfoNmDoOjfUNAYO2NPES'
 
 # Base URL for Binance Testnet
 testnet_url = 'https://testnet.binance.vision/api'
@@ -369,7 +369,7 @@ def greatest_price_increase(initial, final):
     return (greatest_percent_coin, greatest_percent_value)
 
 
-def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, candle_index, candle_initialisation):
+def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, k_line_list):
     symbol = starting_symbol
     MAX_HOLDING_VALUE = max_holding
     holding_coin = 0
@@ -466,17 +466,15 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, cand
                 # If both EMA and K-Line are showing BUY signals, then the bot buys at 10% of max holdings
                 buy_quantity_value = MAX_HOLDING_VALUE * 0.1
                 coin_quantity = buy_quantity_value / float(get_current_price(symbol))
-
-            if coin_quantity > 0:
                 account_balance, order_price = place_market_order(symbol, 'BUY', coin_quantity, account_balance)
                 if order_price != -1:
                     print(f"Bought {coin_quantity} of {symbol} at ${order_price}")
                     holding_coin += coin_quantity
                 else:
                     print("Buy order is too small!")
-                
 
-        elif buy_recommendation == "SELL" and holding_coin > 0:
+
+        elif buy_recommendation == -1 and holding_coin > 0:
 
             if candle_recommendation == -2 :
                 # If EMA is SELL and K-Line is STRONG_SELL, the bot sells at 75% of max holding
@@ -541,13 +539,8 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, cand
 
 
 def main():
-<<<<<<< HEAD
-    symbol = 'USTCUSDT'
-    minutes = 59
-=======
     symbol = 'OPUSDT'
-    minutes = 120
->>>>>>> 7bc827cc61873ae0a87ecf323867a2af3654ade5
+    minutes = 5
     candle_index = -3
     starting_balance = 5000
     max_holdings = 1000
