@@ -1,6 +1,6 @@
 """
 Archer Simpson & Kodi Sinclair
-30/9/24
+6/10/24
 Trading Bot Project - Using a Binance Testnet
 """
 
@@ -95,7 +95,6 @@ def EMA_recommendation(symbol_for_anal):
     ema30 = analysis.moving_averages['COMPUTE']['EMA30']
     sma20 = analysis.moving_averages['COMPUTE']['SMA20']
     ema_list = [ema20, ema30, sma20]
-    print(ema_list)
     ema_signal = compute_ema_from_indicators(ema_list)
     return recommendation_dict[ema_signal]
 
