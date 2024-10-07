@@ -90,11 +90,10 @@ def EMA_recommendation(symbol_for_anal):
         )
     analysis = coin.get_analysis()    
 
-    # return recommendation_dict[analysis.moving_averages['RECOMMENDATION']]
     ema20 = analysis.moving_averages['COMPUTE']['EMA20']
     ema30 = analysis.moving_averages['COMPUTE']['EMA30']
-    sma20 = analysis.moving_averages['COMPUTE']['SMA20']
-    ema_list = [ema20, ema30, sma20]
+    vwma = analysis.moving_averages['COMPUTE']['VWMA']
+    ema_list = [ema20, ema30, vwma]
     ema_signal = compute_ema_from_indicators(ema_list)
     return recommendation_dict[ema_signal]
 
@@ -561,8 +560,8 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, k_li
 
 
 def main():
-    symbol = 'ARKUSDT'
-    minutes = 5
+    symbol = 'OGUSDT'
+    minutes = 59
     candle_index = -3
     starting_balance = 5000
     max_holdings = 1000
