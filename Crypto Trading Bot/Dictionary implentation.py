@@ -19,8 +19,8 @@ import numpy as np
 
 
 # ARCHERS KEY'S
-# API_KEY = 'QYHKtmBofXUNuHBJ352DG2jSAm9nz512wtDzteeKHvvGuFCXnJgw92xCbBiHJHfb'
-# API_SECRET = 'hSjOPnrSNzwZW592nhil2sBFpvEK24szznBOGIULGClSFfoNmDoOjfUNAYO2NPES'
+API_KEY = 'QYHKtmBofXUNuHBJ352DG2jSAm9nz512wtDzteeKHvvGuFCXnJgw92xCbBiHJHfb'
+API_SECRET = 'hSjOPnrSNzwZW592nhil2sBFpvEK24szznBOGIULGClSFfoNmDoOjfUNAYO2NPES'
 
 # Base URL for Binance Testnet
 testnet_url = 'https://testnet.binance.vision/api'
@@ -398,6 +398,21 @@ def greatest_price_increase(initial, final):
     return (greatest_percent_coin, greatest_percent_value)
 
 
+def combined_analysis(symbol, MACD_recommendation, k_line_list):
+    frequent_signal = frequent_analysis(symbol, k_line_list)
+    infrequent_signal = infrequent_analysis(symbol, MACD_recommendation)
+    weighted_signal = 0.35 * frequent_signal + 0.65 * infrequent_signal
+    return weighted_signal
+
+
+def final_buy_signal(symbol, MACD_recommendation, k_line_list):
+    # Returns a value between -2 and 2, which can take on linear combinations of 0.35 and 0.65
+    combined_buy_signal = combined_analysis(MACD_recommendation, symbol, k_line_list)
+    buy_amount = (5 * combined_buy_signal)/10
+    return buy_amount
+
+
+
 def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, k_line_list):
     symbol = starting_symbol
     MAX_HOLDING_VALUE = max_holding
@@ -569,7 +584,7 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, k_li
 
 
 def main():
-    symbol = 'OGUSDT'
+    symbol = 'SYNUSDT'
     minutes = 59
     candle_index = -3
     starting_balance = 5000
