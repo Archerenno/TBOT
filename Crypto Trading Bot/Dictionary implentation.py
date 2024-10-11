@@ -1,6 +1,6 @@
 """
 Archer Simpson & Kodi Sinclair
-30/9/24
+6/10/24
 Trading Bot Project - Using a Binance Testnet
 """
 
@@ -90,9 +90,30 @@ def EMA_recommendation(symbol_for_anal):
         )
     analysis = coin.get_analysis()    
 
-    # return recommendation_dict[analysis.moving_averages['RECOMMENDATION']]
-    return recommendation_dict[analysis.moving_averages['COMPUTE']['SMA50']]
-    # return analysis.moving_averages['COMPUTE']
+    ema20 = analysis.moving_averages['COMPUTE']['EMA20']
+    ema30 = analysis.moving_averages['COMPUTE']['EMA30']
+    vwma = analysis.moving_averages['COMPUTE']['VWMA']
+    ema_list = [ema20, ema30, vwma]
+    ema_signal = compute_ema_from_indicators(ema_list)
+    return recommendation_dict[ema_signal]
+
+
+def compute_ema_from_indicators(ema_list):
+    signal = 0
+    for ema in ema_list:
+        if ema == "BUY":
+            signal += 1
+        elif ema == "SELL":
+            signal -= 1
+    if signal == 3:
+        return "STRONG_BUY"
+    elif signal == 1:
+        return "BUY"
+    elif signal == -1:
+        return "SELL"
+    elif signal == -3:
+        return "STRONG_SELL"
+
 
 
 def K_line_initialisation(candle_index, ticker):
@@ -172,17 +193,14 @@ def RSI(symbol_for_anal):
     analysis = coin.get_analysis()   
     RSI_value =  analysis.indicators["RSI"]
 
-    if RSI_value <= 30 and RSI_value >= 20:
+    if RSI_value <= 30:
         RSI_signal = recommendation_dict["BUY"]
 
-    elif RSI_value < 20:
-        RSI_signal = recommendation_dict["STRONG_BUY"]
-
-    elif RSI_value >= 75 and RSI_value < 80:
+    elif RSI_value >= 70:
         RSI_signal = recommendation_dict["SELL"]
-
-    elif RSI_value >= 80:
-        RSI_signal = recommendation_dict["STRONG_SELL"]
+    
+    else:
+        RSI_signal = recommendation_dict["NEUTRAL"]
 
     return RSI_signal
 
@@ -223,10 +241,21 @@ def MACD_analysis(curr_macd_macd, curr_macd_signal, prev_macd_macd, prev_macd_si
     return None
 
 
+def frequent_analysis(symbol, k_line_list):
 
-    
+    buy_recommendation = EMA_recommendation(symbol)
+    candle_recommendation = K_line_recommendation(k_line_list[0], k_line_list[1], symbol)
 
+    frequent_recommendation = (buy_recommendation + candle_recommendation) // 2 
 
+    return frequent_recommendation
+
+def infrequent_analysis(symbol, MACD_recommendaiton):
+
+    RSI_recommendation = RSI(symbol)
+    infrequent_recommendation = (MACD_recommendaiton + RSI_recommendation)
+
+    return infrequent_recommendation
 
 def get_last_order_price(symbol):
     """Get the coin price from the last order placed. Returns a string"""
@@ -369,7 +398,7 @@ def greatest_price_increase(initial, final):
     return (greatest_percent_coin, greatest_percent_value)
 
 
-def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, candle_index, candle_initialisation):
+def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, k_line_list):
     symbol = starting_symbol
     MAX_HOLDING_VALUE = max_holding
     holding_coin = 0
@@ -381,6 +410,8 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, cand
 
     candle_index = k_line_list[0]
     candle_initialisation = k_line_list[1]
+
+    prev_MACD_anal = []
 
     for i in range(operating_mins):
 
@@ -406,6 +437,7 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, cand
             prev_macd_signal = curr_macd_signal
             curr_macd_macd, curr_macd_signal = MACD(symbol)
             MACD_recommendation = MACD_analysis(curr_macd_macd, curr_macd_signal, prev_macd_macd, prev_macd_signal)
+            prev_MACD_anal.append = MACD_recommendation
             print(f'The MACD Recommendation is: {MACD_recommendation}')
 
 
@@ -417,9 +449,7 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, cand
         candle_recommendation = K_line_recommendation(candle_initialisation, candle_index, symbol)
         print(f"Minute {i}, EMA Recommendation: {buy_recommendation}, K-line Recommendation: {candle_recommendation}")
 
-
         if buy_recommendation == 2 and holding_value < MAX_HOLDING_VALUE:
-
             if candle_recommendation == 2:
                 # If both EMA and K-Line are showing STRONG_BUY signals, then the bot buys at 30% of max holdings
                 buy_quantity_value = MAX_HOLDING_VALUE * 0.3
@@ -466,17 +496,15 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, cand
                 # If both EMA and K-Line are showing BUY signals, then the bot buys at 10% of max holdings
                 buy_quantity_value = MAX_HOLDING_VALUE * 0.1
                 coin_quantity = buy_quantity_value / float(get_current_price(symbol))
-
-            if coin_quantity > 0:
                 account_balance, order_price = place_market_order(symbol, 'BUY', coin_quantity, account_balance)
                 if order_price != -1:
                     print(f"Bought {coin_quantity} of {symbol} at ${order_price}")
                     holding_coin += coin_quantity
                 else:
                     print("Buy order is too small!")
-                
 
-        elif buy_recommendation == "SELL" and holding_coin > 0:
+
+        elif buy_recommendation == -1 and holding_coin > 0:
 
             if candle_recommendation == -2 :
                 # If EMA is SELL and K-Line is STRONG_SELL, the bot sells at 75% of max holding
@@ -541,8 +569,8 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, cand
 
 
 def main():
-    symbol = 'OPUSDT'
-    minutes = 120
+    symbol = 'OGUSDT'
+    minutes = 59
     candle_index = -3
     starting_balance = 5000
     max_holdings = 1000
@@ -554,5 +582,4 @@ def main():
     # final_sell(symbol, 4800, 310.4, 5000)
 
 main()
-
 
