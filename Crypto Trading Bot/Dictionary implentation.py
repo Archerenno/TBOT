@@ -14,13 +14,13 @@ import numpy as np
 
 # Testnet API credentials
 # KODI'S KEYS
-# API_KEY = 'rJljPrYroAaNOHIKfy0WJk2xWo9aeAjPsL5YSp2O6JQUTW8E5PU3aIz0hdeX7tO7'
-# API_SECRET = 'aO0F2T3epauKW9GQGRj4Wlb8zxtCabFXHRE3e3f1nrgANl0FNTMCSkZYQfE6SzT3'
+API_KEY = 'rJljPrYroAaNOHIKfy0WJk2xWo9aeAjPsL5YSp2O6JQUTW8E5PU3aIz0hdeX7tO7'
+API_SECRET = 'aO0F2T3epauKW9GQGRj4Wlb8zxtCabFXHRE3e3f1nrgANl0FNTMCSkZYQfE6SzT3'
 
 
 # ARCHERS KEY'S
-API_KEY = 'QYHKtmBofXUNuHBJ352DG2jSAm9nz512wtDzteeKHvvGuFCXnJgw92xCbBiHJHfb'
-API_SECRET = 'hSjOPnrSNzwZW592nhil2sBFpvEK24szznBOGIULGClSFfoNmDoOjfUNAYO2NPES'
+# API_KEY = 'QYHKtmBofXUNuHBJ352DG2jSAm9nz512wtDzteeKHvvGuFCXnJgw92xCbBiHJHfb'
+# API_SECRET = 'hSjOPnrSNzwZW592nhil2sBFpvEK24szznBOGIULGClSFfoNmDoOjfUNAYO2NPES'
 
 # Base URL for Binance Testnet
 testnet_url = 'https://testnet.binance.vision/api'
@@ -95,6 +95,10 @@ def EMA_recommendation(symbol_for_anal):
     vwma = analysis.moving_averages['COMPUTE']['VWMA']
     ema_list = [ema20, ema30, vwma]
     ema_signal = compute_ema_from_indicators(ema_list)
+
+    #NOTE: PRINT LINE IS FOR TESTING
+    print(f"EMA Signal = {ema_signal}")
+
     return recommendation_dict[ema_signal]
 
 
@@ -174,6 +178,9 @@ def K_line_recommendation(signals, candle_index, ticker):
     else:
         signals.append(False)
 
+    #NOTE: PRINT LINE IS FOR TESTING
+    print(f"Candle recommendation = {k_line_signal}")
+
     #return final recommendation
     return k_line_signal
 
@@ -201,6 +208,9 @@ def RSI(symbol_for_anal):
     
     else:
         RSI_signal = recommendation_dict["NEUTRAL"]
+
+    #NOTE: PRINT LINE IS FOR TESTING
+    print(f"RSI signal = {RSI_signal}")
 
     return RSI_signal
 
@@ -238,15 +248,20 @@ def MACD_analysis(curr_macd_macd, curr_macd_signal, prev_macd_macd, prev_macd_si
     elif prev_signal_above is False and curr_signal_above is True:
         return recommendation_dict["SELL"]
     
-    return None
+
+
+    return recommendation_dict["NEUTRAL"]
 
 
 def frequent_analysis(symbol, k_line_list):
 
     buy_recommendation = EMA_recommendation(symbol)
-    candle_recommendation = K_line_recommendation(k_line_list[0], k_line_list[1], symbol)
+    candle_recommendation = K_line_recommendation(k_line_list[1], k_line_list[0], symbol)
 
     frequent_recommendation = (buy_recommendation + candle_recommendation) // 2 
+
+    #NOTE: PRINT LINE IS FOR TESTING
+    print(f"frequent recommendation = {frequent_recommendation}")
 
     return frequent_recommendation
 
@@ -254,6 +269,9 @@ def infrequent_analysis(symbol, MACD_recommendaiton):
 
     RSI_recommendation = RSI(symbol)
     infrequent_recommendation = (MACD_recommendaiton + RSI_recommendation)
+
+    #NOTE: PRINT LINE IS FOR TESTING
+    print(f"infrequent recommendation = {infrequent_recommendation}")
 
     return infrequent_recommendation
 
@@ -407,8 +425,11 @@ def combined_analysis(symbol, MACD_recommendation, k_line_list):
 
 def final_buy_signal(symbol, MACD_recommendation, k_line_list):
     # Returns a value between -2 and 2, which can take on linear combinations of 0.35 and 0.65
-    combined_buy_signal = combined_analysis(MACD_recommendation, symbol, k_line_list)
+    combined_buy_signal = combined_analysis(symbol, MACD_recommendation ,k_line_list)
     buy_amount = (5 * combined_buy_signal)/10
+
+    #NOTE TESTING PRINT 
+    print(f"final buy signal = {combined_buy_signal}")
     return buy_amount
 
 
@@ -422,9 +443,6 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, k_li
     current_coin_prices = get_usdt_coins_prices()
     onehr_ago_coin_prices = None
     # This for loop will loop every minute
-
-    candle_index = k_line_list[0]
-    candle_initialisation = k_line_list[1]
 
     prev_MACD_anal = []
 
@@ -443,129 +461,148 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, k_li
 
         if i == 0:
             prev_macd_macd, prev_macd_signal = MACD(symbol)
+            MACD_recommendation = recommendation_dict["NEUTRAL"]
             print("initialising MACD Values")
         elif i == 1 :
             curr_macd_macd, curr_macd_signal = MACD(symbol)
+            MACD_recommendation = recommendation_dict["NEUTRAL"]
             print("Initialising MACD Values")
         else:
             prev_macd_macd = curr_macd_macd
             prev_macd_signal = curr_macd_signal
             curr_macd_macd, curr_macd_signal = MACD(symbol)
             MACD_recommendation = MACD_analysis(curr_macd_macd, curr_macd_signal, prev_macd_macd, prev_macd_signal)
-            prev_MACD_anal.append = MACD_recommendation
+            prev_MACD_anal.append(MACD_recommendation)
             print(f'The MACD Recommendation is: {MACD_recommendation}')
 
 
         current_price = get_current_price(symbol)
-        max_holding_coin = MAX_HOLDING_VALUE / float(current_price)
+
         holding_value = holding_coin * float(current_price)
         
-        buy_recommendation = EMA_recommendation(symbol)
-        candle_recommendation = K_line_recommendation(candle_initialisation, candle_index, symbol)
-        print(f"Minute {i}, EMA Recommendation: {buy_recommendation}, K-line Recommendation: {candle_recommendation}")
+        order_percent = final_buy_signal(symbol, MACD_recommendation, k_line_list)
 
-        if buy_recommendation == 2 and holding_value < MAX_HOLDING_VALUE:
-            if candle_recommendation == 2:
-                # If both EMA and K-Line are showing STRONG_BUY signals, then the bot buys at 30% of max holdings
-                buy_quantity_value = MAX_HOLDING_VALUE * 0.3
-                coin_quantity = buy_quantity_value / float(get_current_price(symbol))
-                account_balance, order_price = place_market_order(symbol, 'BUY', coin_quantity, account_balance)
-                if order_price != -1:
-                    print(f"Bought {coin_quantity} of {symbol} at ${order_price}")
-                    holding_coin += coin_quantity
-                else:
-                    print("Buy order is too small!")
+
+        if order_percent > 0 and holding_value < MAX_HOLDING_VALUE:
+            buy_quantity = order_percent * MAX_HOLDING_VALUE
+            coin_quantity = buy_quantity / float(get_current_price(symbol))
+            account_balance, order_price = place_market_order(symbol, 'BUY', coin_quantity, account_balance)
+            if order_price != -1:
+                print(f"Bought {coin_quantity} of {symbol} at ${order_price}")
+                holding_coin += coin_quantity
+            else:
+                print("Buy order is too small!")
                 # The amount of coin that is being held with the newly bought coin
+        
+        elif order_percent < 0 and holding_value > 0:
+            sell_quantity = abs(order_percent * holding_coin)
+            account_balance, order_price = place_market_order(symbol, 'SELL', sell_quantity, account_balance)
+            if order_price != -1:
+                print(f"Sold {sell_quantity} of {symbol} at ${order_price}")
+                holding_coin -= sell_quantity
+            else:
+                print("Sell amount too small!")
+
+        else:
+            pass
+
+
+
+        # if buy_recommendation == 2 and holding_value < MAX_HOLDING_VALUE:
+        #     if candle_recommendation == 2:
+        #         # If both EMA and K-Line are showing STRONG_BUY signals, then the bot buys at 30% of max holdings
+        #         buy_quantity_value = MAX_HOLDING_VALUE * 0.3
+                
                 
 
-            elif candle_recommendation == 1:
-                # If EMA is STRONG_BUY and K-Line is BUY, the bot buys at 20% of max holding
-                buy_quantity_value = MAX_HOLDING_VALUE * 0.2
-                coin_quantity = buy_quantity_value / float(get_current_price(symbol))
+        #     elif candle_recommendation == 1:
+        #         # If EMA is STRONG_BUY and K-Line is BUY, the bot buys at 20% of max holding
+        #         buy_quantity_value = MAX_HOLDING_VALUE * 0.2
+        #         coin_quantity = buy_quantity_value / float(get_current_price(symbol))
 
-                account_balance, order_price = place_market_order(symbol, 'BUY', coin_quantity, account_balance)
-                if order_price != -1:
-                    print(f"Bought {coin_quantity} of {symbol} at ${order_price}")
-                    holding_coin += coin_quantity
-                else:
-                    print("Buy order is too small!")
-                # The amount of coin that is being held with the newly bought coin
+        #         account_balance, order_price = place_market_order(symbol, 'BUY', coin_quantity, account_balance)
+        #         if order_price != -1:
+        #             print(f"Bought {coin_quantity} of {symbol} at ${order_price}")
+        #             holding_coin += coin_quantity
+        #         else:
+        #             print("Buy order is too small!")
+        #         # The amount of coin that is being held with the newly bought coin
 
 
 
-        elif buy_recommendation == 1 and holding_value < MAX_HOLDING_VALUE:
+        # elif buy_recommendation == 1 and holding_value < MAX_HOLDING_VALUE:
 
-            if candle_recommendation == 2:
-                 # If EMA is BUY and K-Line is STRONG_BUY, the bot buys at 20% of max holding
-                buy_quantity_value = MAX_HOLDING_VALUE * 0.2
-                coin_quantity = buy_quantity_value / float(get_current_price(symbol))
-                account_balance, order_price = place_market_order(symbol, 'BUY', coin_quantity, account_balance)
-                if order_price != -1:
-                    print(f"Bought {coin_quantity} of {symbol} at ${order_price}")
-                    holding_coin += coin_quantity
-                else:
-                    print("Buy order is too small!")
+        #     if candle_recommendation == 2:
+        #          # If EMA is BUY and K-Line is STRONG_BUY, the bot buys at 20% of max holding
+        #         buy_quantity_value = MAX_HOLDING_VALUE * 0.2
+        #         coin_quantity = buy_quantity_value / float(get_current_price(symbol))
+        #         account_balance, order_price = place_market_order(symbol, 'BUY', coin_quantity, account_balance)
+        #         if order_price != -1:
+        #             print(f"Bought {coin_quantity} of {symbol} at ${order_price}")
+        #             holding_coin += coin_quantity
+        #         else:
+        #             print("Buy order is too small!")
                 
 
-            elif candle_recommendation == 1:
-                # If both EMA and K-Line are showing BUY signals, then the bot buys at 10% of max holdings
-                buy_quantity_value = MAX_HOLDING_VALUE * 0.1
-                coin_quantity = buy_quantity_value / float(get_current_price(symbol))
-                account_balance, order_price = place_market_order(symbol, 'BUY', coin_quantity, account_balance)
-                if order_price != -1:
-                    print(f"Bought {coin_quantity} of {symbol} at ${order_price}")
-                    holding_coin += coin_quantity
-                else:
-                    print("Buy order is too small!")
+        #     elif candle_recommendation == 1:
+        #         # If both EMA and K-Line are showing BUY signals, then the bot buys at 10% of max holdings
+        #         buy_quantity_value = MAX_HOLDING_VALUE * 0.1
+        #         coin_quantity = buy_quantity_value / float(get_current_price(symbol))
+        #         account_balance, order_price = place_market_order(symbol, 'BUY', coin_quantity, account_balance)
+        #         if order_price != -1:
+        #             print(f"Bought {coin_quantity} of {symbol} at ${order_price}")
+        #             holding_coin += coin_quantity
+        #         else:
+        #             print("Buy order is too small!")
 
 
-        elif buy_recommendation == -1 and holding_coin > 0:
+        # elif buy_recommendation == -1 and holding_coin > 0:
 
-            if candle_recommendation == -2 :
-                # If EMA is SELL and K-Line is STRONG_SELL, the bot sells at 75% of max holding
-                sell_amount = holding_coin * 0.75
-                account_balance, order_price = place_market_order(symbol, 'SELL', sell_amount, account_balance)
-                if order_price != -1:
-                    print(f"Sold {sell_amount} of {symbol} at ${order_price}")
-                    holding_coin -= sell_amount
-                else:
-                    print("Sell amount too small!")
+        #     if candle_recommendation == -2 :
+        #         # If EMA is SELL and K-Line is STRONG_SELL, the bot sells at 75% of max holding
+        #         sell_amount = holding_coin * 0.75
+        #         account_balance, order_price = place_market_order(symbol, 'SELL', sell_amount, account_balance)
+        #         if order_price != -1:
+        #             print(f"Sold {sell_amount} of {symbol} at ${order_price}")
+        #             holding_coin -= sell_amount
+        #         else:
+        #             print("Sell amount too small!")
                 
 
-            if candle_recommendation == -1:
-                # If EMA is SELL and K-Line is also SELL, the bot sells at 50% of max holding
-                sell_amount = holding_coin * 0.5
-                account_balance, order_price = place_market_order(symbol, 'SELL', sell_amount, account_balance)
-                if order_price != -1:
-                    print(f"Sold {sell_amount} of {symbol} at ${order_price}")
-                    holding_coin -= sell_amount
-                else:
-                    print("Sell amount too small!")
+        #     if candle_recommendation == -1:
+        #         # If EMA is SELL and K-Line is also SELL, the bot sells at 50% of max holding
+        #         sell_amount = holding_coin * 0.5
+        #         account_balance, order_price = place_market_order(symbol, 'SELL', sell_amount, account_balance)
+        #         if order_price != -1:
+        #             print(f"Sold {sell_amount} of {symbol} at ${order_price}")
+        #             holding_coin -= sell_amount
+        #         else:
+        #             print("Sell amount too small!")
 
 
 
 
-        elif buy_recommendation == -2 and holding_coin > 0:
+        # elif buy_recommendation == -2 and holding_coin > 0:
 
-            if candle_recommendation == -2:
-                # If both EMA and K-Line are showing STRONG_SELL signals, then the bot sells all holdings
-                sell_amount = holding_coin
-                account_balance, order_price = place_market_order(symbol, 'SELL', sell_amount, account_balance)
-                if order_price != -1:
-                    print(f"Sold {sell_amount} of {symbol} at ${order_price}")
-                    holding_coin -= sell_amount
-                else:
-                    print("Sell amount too small!")
+        #     if candle_recommendation == -2:
+        #         # If both EMA and K-Line are showing STRONG_SELL signals, then the bot sells all holdings
+        #         sell_amount = holding_coin
+        #         account_balance, order_price = place_market_order(symbol, 'SELL', sell_amount, account_balance)
+        #         if order_price != -1:
+        #             print(f"Sold {sell_amount} of {symbol} at ${order_price}")
+        #             holding_coin -= sell_amount
+        #         else:
+        #             print("Sell amount too small!")
 
-            if candle_recommendation == -1:
-                # If EMA is STRONG_SELL and K-Line is SELL, the bot sells at 75% of max holding
-                sell_amount = holding_coin * 0.75
-                account_balance, order_price = place_market_order(symbol, 'SELL', sell_amount, account_balance)
-                if order_price != -1:
-                    print(f"Sold {sell_amount} of {symbol} at ${order_price}")
-                    holding_coin -= sell_amount
-                else:
-                    print("Sell amount too small!")
+        #     if candle_recommendation == -1:
+        #         # If EMA is STRONG_SELL and K-Line is SELL, the bot sells at 75% of max holding
+        #         sell_amount = holding_coin * 0.75
+        #         account_balance, order_price = place_market_order(symbol, 'SELL', sell_amount, account_balance)
+        #         if order_price != -1:
+        #             print(f"Sold {sell_amount} of {symbol} at ${order_price}")
+        #             holding_coin -= sell_amount
+        #         else:
+        #             print("Sell amount too small!")
             
 
             
@@ -584,7 +621,7 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, k_li
 
 
 def main():
-    symbol = 'SYNUSDT'
+    symbol = 'NEIROUSDT'
     minutes = 59
     candle_index = -3
     starting_balance = 5000
