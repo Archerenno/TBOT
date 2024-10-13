@@ -475,7 +475,6 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, k_li
             prev_MACD_anal.append(MACD_recommendation)
             print(f'The MACD Recommendation is: {MACD_recommendation}')
 
-
         current_price = get_current_price(symbol)
 
         holding_value = holding_coin * float(current_price)
