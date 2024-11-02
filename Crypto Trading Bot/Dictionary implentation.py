@@ -449,7 +449,6 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, k_li
 
     for i in range(operating_mins):
         print(f"Minute {i}")
-        print(f"Holding Coin: {get_holding_coin(symbol)}")
         if (i % 60 == 0) and (i > 0):
             closing_balance = final_sell(symbol, account_balance, holding_coin, starting_balance)
             onehr_ago_coin_prices = current_coin_prices
@@ -457,9 +456,8 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, k_li
             best_coin, onehour_percent_increase = greatest_price_increase(onehr_ago_coin_prices, current_coin_prices)
             symbol = best_coin
             print(f"Coin changing to: {symbol}. \n 1 Hour Price Change: {onehour_percent_increase:.2f}")
+            holding_coin = 0
             account_balance = closing_balance
-
-        holding_coin = get_holding_coin(asset = symbol)
 
         if i == 0:
             prev_macd_macd, prev_macd_signal = MACD(symbol)
