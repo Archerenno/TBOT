@@ -11,6 +11,7 @@ from binance.enums import *
 import binance
 import time
 import numpy as np
+import math
 
 # Testnet API credentials
 # # KODI'S KEYS
@@ -250,7 +251,7 @@ def frequent_analysis(symbol, k_line_list):
     buy_recommendation = EMA_recommendation(symbol)
     candle_recommendation = K_line_recommendation(k_line_list[1], k_line_list[0], symbol)
 
-    frequent_recommendation = (buy_recommendation + candle_recommendation) // 2 
+    frequent_recommendation = math.ceil((buy_recommendation + candle_recommendation) / 2 )
 
     return frequent_recommendation
 
@@ -432,7 +433,7 @@ def final_buy_signal(symbol, MACD_recommendation, k_line_list):
 
 def get_holding_coin(symbol):
     curr_holding = client.get_asset_balance(asset = symbol)
-    return curr_holding
+    return curr_holding['free']
 
 def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, k_line_list):
     symbol = starting_symbol
@@ -449,16 +450,16 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, k_li
     for i in range(operating_mins):
         print(f"Minute {i}")
         print(f"Holding Coin: {get_holding_coin(symbol)}")
-        if (i % 120 == 0) and (i > 0):
+        if (i % 60 == 0) and (i > 0):
             closing_balance = final_sell(symbol, account_balance, holding_coin, starting_balance)
             onehr_ago_coin_prices = current_coin_prices
             current_coin_prices = get_usdt_coins_prices()
             best_coin, onehour_percent_increase = greatest_price_increase(onehr_ago_coin_prices, current_coin_prices)
             symbol = best_coin
             print(f"Coin changing to: {symbol}. \n 1 Hour Price Change: {onehour_percent_increase:.2f}")
-            holding_coin = 0
             account_balance = closing_balance
 
+        holding_coin = get_holding_coin(asset = symbol)
 
         if i == 0:
             prev_macd_macd, prev_macd_signal = MACD(symbol)
