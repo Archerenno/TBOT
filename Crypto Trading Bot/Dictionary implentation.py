@@ -450,14 +450,17 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, k_li
     for i in range(operating_mins):
         print(f"Minute {i}")
         if (i % 60 == 0) and (i > 0):
-            closing_balance = final_sell(symbol, account_balance, holding_coin, starting_balance)
             onehr_ago_coin_prices = current_coin_prices
             current_coin_prices = get_usdt_coins_prices()
             best_coin, onehour_percent_increase = greatest_price_increase(onehr_ago_coin_prices, current_coin_prices)
-            symbol = best_coin
-            print(f"Coin changing to: {symbol}. \n 1 Hour Price Change: {onehour_percent_increase:.2f}")
-            holding_coin = 0
-            account_balance = closing_balance
+            if best_coin != symbol:
+                closing_balance = final_sell(symbol, account_balance, holding_coin, starting_balance)
+                print(f"Coin changing to: {best_coin}. \n 1 Hour Price Change: {onehour_percent_increase:.2f}")
+                symbol = best_coin
+                holding_coin = 0
+                account_balance = closing_balance
+            else:
+                print(f"Top peforming coin is still {symbol}")
 
         if i == 0:
             prev_macd_macd, prev_macd_signal = MACD(symbol)
@@ -522,7 +525,7 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, k_li
 
 def main():
     symbol = 'DOGSUSDT'
-    minutes = 10
+    minutes = 20
     candle_index = -3
     starting_balance = 5000
     max_holdings = 1000
