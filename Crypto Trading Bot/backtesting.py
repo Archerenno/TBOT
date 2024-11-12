@@ -1,30 +1,38 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import datetime  # For datetime objects
-import os.path  # To manage paths
-import sys  # To find out the script name (in argv[0])
-
+from datetime import datetime
 # Import the backtrader platform
 import backtrader as bt
+import numpy as np
+
+
+def unix_to_datetime(unix_time):
+    if unix_time > 1e10:  # Greater than 10 billion indicates milliseconds
+        unix_time /= 1000
+    return datetime.fromtimestamp(int(unix_time)).strftime('%Y-%m-%d %H:%M:%S')
+
+
+def clean_data(data):
+    lines = np.loadtxt("Historical Data/BTCUSDT/11-10-2024/BTCUSDT-1m-2024-11-10.csv", dtype=str)
+    for line in lines:
+        line_data = line.split(",")
+        unix = line_data[0]
+        line_data[0] = unix_to_datetime(unix_time=int(unix))
+
+    
 
 if __name__ == '__main__':
     # Create a cerebro entity
     cerebro = bt.Cerebro()
 
-    # Datas are in a subfolder of the samples. Need to find where the script is
-    # because it could have been called from anywhere
-    modpath = os.path.dirname(os.path.abspath(sys.argv[0]))
-    datapath = os.path.join(modpath, '../../datas/orcl-1995-2014.txt')
+    filepath = "Historical Data/BTCUSDT/11-10-2024/BTCUSDT-1m-2024-11-10.csv"
 
-    # Create a Data Feed
-    data = bt.feeds.YahooFinanceCSVData(
-        dataname=datapath,
-        # Do not pass values before this date
-        fromdate=datetime.datetime(2000, 1, 1),
-        # Do not pass values after this date
-        todate=datetime.datetime(2000, 12, 31),
-        reverse=False)
+    clean_data(filepath)
+
+    data = bt.feeds.GenericCSVData(
+        dataname = filepath,
+        openinterest = -1)
 
     # Add the Data Feed to Cerebro
     cerebro.adddata(data)

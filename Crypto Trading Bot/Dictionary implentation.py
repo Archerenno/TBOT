@@ -524,8 +524,8 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, k_li
 
 
 def main():
-    symbol = 'DOGSUSDT'
-    minutes = 20
+    symbol = 'SNTUSDT'
+    minutes = 59
     candle_index = -3
     starting_balance = 5000
     max_holdings = 1000
