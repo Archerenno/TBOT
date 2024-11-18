@@ -17,5 +17,5 @@ TBOT is still in current development and some upcoming features we are actively 
 - Writing exchange orders to a textfile
 
 ### Contributors:
-Trading Lead - Kodi Sinclair
+Trading Lead - Kodi Sinclair <br/>
 Technical Lead - Archer Simpson
