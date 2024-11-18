@@ -1,7 +1,6 @@
 # TBOT
 
 Current Version: 1.0
-Contributors: Archerenno & 
 
 ## Introduction:
 TBOT is a trading bot specialising in cryptocurrencies which has been in development since August 2024. TBOT uses Binance and Trading View libraries to perform analysis on coins and then commits buy or sell orders depending on these signals
@@ -16,3 +15,7 @@ Extensive testing has been done on TBOT, mostly off the TestNet server but also 
 TBOT is still in current development and some upcoming features we are actively working towards are:
 - Backtesting
 - Writing exchange orders to a textfile
+
+### Contributors:
+Trading Lead - Kodi Sinclair
+Technical Lead - Archer Simpson
