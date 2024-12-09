@@ -12,16 +12,17 @@ import binance
 import time
 import numpy as np
 import math
+import os
 
 # Testnet API credentials
 # # KODI'S KEYS
-# API_KEY = 'rJljPrYroAaNOHIKfy0WJk2xWo9aeAjPsL5YSp2O6JQUTW8E5PU3aIz0hdeX7tO7'
-# API_SECRET = 'aO0F2T3epauKW9GQGRj4Wlb8zxtCabFXHRE3e3f1nrgANl0FNTMCSkZYQfE6SzT3'
+API_KEY = 'rJljPrYroAaNOHIKfy0WJk2xWo9aeAjPsL5YSp2O6JQUTW8E5PU3aIz0hdeX7tO7'
+API_SECRET = 'aO0F2T3epauKW9GQGRj4Wlb8zxtCabFXHRE3e3f1nrgANl0FNTMCSkZYQfE6SzT3'
 
 
 # ARCHERS KEY'S
-API_KEY = 'QYHKtmBofXUNuHBJ352DG2jSAm9nz512wtDzteeKHvvGuFCXnJgw92xCbBiHJHfb'
-API_SECRET = 'hSjOPnrSNzwZW592nhil2sBFpvEK24szznBOGIULGClSFfoNmDoOjfUNAYO2NPES'
+#API_KEY = 'QYHKtmBofXUNuHBJ352DG2jSAm9nz512wtDzteeKHvvGuFCXnJgw92xCbBiHJHfb'
+#API_SECRET = 'hSjOPnrSNzwZW592nhil2sBFpvEK24szznBOGIULGClSFfoNmDoOjfUNAYO2NPES'
 
 # Base URL for Binance Testnet
 testnet_url = 'https://testnet.binance.vision/api'
@@ -435,12 +436,32 @@ def get_holding_coin(symbol):
     curr_holding = client.get_asset_balance(asset = symbol)
     return curr_holding['free']
 
+def initialise_file():
+    """ Initialises the file when the code is first ran. """
+    time_str = str(time.ctime())
+    curr_day = time_str[0:11]
+    curr_year = time_str[-4:]
+    curr_date = curr_day + curr_year
+    folder_path = '/Users/kodi/Desktop/Everything TBOT/Testing read and write files /TBOT files'
+    file_path = os.path.join(folder_path, f"{curr_date}.txt")
+    with open(file_path, "w") as file: 
+        file.writelines("COIN, ACTION, PRICE, QUANTITY, TIMESTAMP, EMA, K-LINE, RSI, MACD ")
+    return file_path, time_str
+
+def trade_history_storage(file_path, time_str, order_info):
+    """ is called upon each time a buy / sell trade is executed. """
+
+    with open(file_path, "w") as file:
+        file.write(f"{order_info['COIN']}, {order_info['ACTION']}, {order_info['PRICE']}, {order_info['QUANTITY']}, {time_str}, {order_info['EMA']}, {order_info['K-LINE']}, {order_info['K-LINE']}, {order_info['RSI']}, {order_info['MACD']} \n")
+
+
 def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, k_line_list):
     symbol = starting_symbol
     MAX_HOLDING_VALUE = max_holding
     holding_coin = 0
     account_balance = starting_balance
 
+    file_path, time_str = initialise_file()
     current_coin_prices = get_usdt_coins_prices()
     onehr_ago_coin_prices = None
     # This for loop will loop every minute
@@ -492,6 +513,8 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, k_li
             if order_price != -1:
                 print(f"Bought {coin_quantity} of {symbol} at ${order_price}")
                 holding_coin += coin_quantity
+                order_info = {'COIN' : symbol, 'ACTION' : 'BUY', 'PRICE' : order_price, 'QUANTITY' : buy_quantity ,'EMA': EMA_signal, 'K-LINE' : candle_recommendation, 'RSI' : RSI_recommendation, "MACD" : MACD_recommendation }
+                trade_history_storage(file_path, time_str, order_info)
             else:
                 print("Buy order is too small!")
                 # The amount of coin that is being held with the newly bought coin
@@ -502,6 +525,8 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, k_li
             if order_price != -1:
                 print(f"Sold {sell_quantity} of {symbol} at ${order_price}")
                 holding_coin -= sell_quantity
+                order_info = {'COIN' : symbol, 'ACTION' : 'SELL', 'PRICE' : order_price, 'QUANTITY' : buy_quantity ,'EMA': EMA_signal, 'K-LINE' : candle_recommendation, 'RSI' : RSI_recommendation, "MACD" : MACD_recommendation }
+                trade_history_storage(file_path, time_str, order_info)
             else:
                 print("Sell amount too small!")
 
