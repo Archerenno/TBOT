@@ -1,6 +1,6 @@
 """
 Archer Simpson & Kodi Sinclair
-6/10/24
+9/12/24
 Trading Bot Project - Using a Binance Testnet
 """
 
