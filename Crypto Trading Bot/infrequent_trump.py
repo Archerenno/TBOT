@@ -415,12 +415,7 @@ def greatest_price_increase(initial, final):
 def combined_analysis(symbol, MACD_recommendation, k_line_list):
     frequent_signal = frequent_analysis(symbol, k_line_list)
     infrequent_signal = infrequent_analysis(symbol, MACD_recommendation)
-    if infrequent_signal > 0:
-        weighted_signal = 2
-    elif infrequent_signal < 0:
-        weighted_signal = -2
-    else:
-        weighted_signal = frequent_signal
+    weighted_signal = infrequent_signal
     return weighted_signal
 
 
@@ -457,7 +452,7 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, k_li
             best_coin, onehour_percent_increase = greatest_price_increase(onehr_ago_coin_prices, current_coin_prices)
             if best_coin != symbol:
                 closing_balance = final_sell(symbol, account_balance, holding_coin, starting_balance)
-                print(f"Coin changing to: {best_coin}. \n 1 Hour Price Change: {onehour_percent_increase:.2f}")
+                print(f"Coin changing to: {best_coin} \n1 Hour Price Change: %{onehour_percent_increase:.2f}")
                 symbol = best_coin
                 holding_coin = 0
                 account_balance = closing_balance
@@ -509,7 +504,9 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, k_li
 
         else:
             pass
-       
+        
+        current_price = get_current_price(symbol)
+        holding_value = holding_coin * float(current_price)
             
         if holding_value >= MAX_HOLDING_VALUE:
             print(f"Max units of {symbol} has been reached at {holding_coin}. Currently valued at ${float(current_price)} per unit")
@@ -526,7 +523,7 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, k_li
 
 
 def main():
-    symbol = 'SNTUSDT'
+    symbol = 'MASKUSDT'
     minutes = 59
     candle_index = -3
     starting_balance = 5000

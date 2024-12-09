@@ -258,7 +258,7 @@ def frequent_analysis(symbol, k_line_list):
 def infrequent_analysis(symbol, MACD_recommendaiton):
 
     RSI_recommendation = RSI(symbol)
-    infrequent_recommendation = (MACD_recommendaiton + RSI_recommendation)
+    infrequent_recommendation = (0.5 * MACD_recommendaiton + 0.5 * RSI_recommendation) * 2
 
     return infrequent_recommendation
 
@@ -508,7 +508,8 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, k_li
         else:
             pass
        
-            
+        holding_value = holding_coin * float(current_price)
+
         if holding_value >= MAX_HOLDING_VALUE:
             print(f"Max units of {symbol} has been reached at {holding_coin}. Currently valued at ${float(current_price)} per unit")
         else:
@@ -524,7 +525,7 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, k_li
 
 
 def main():
-    symbol = 'SNTUSDT'
+    symbol = 'PEPEUSDT'
     minutes = 59
     candle_index = -3
     starting_balance = 5000
