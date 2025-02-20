@@ -2,34 +2,35 @@ import pandas as pd
 import requests
 import backtrader as bt
 
-def get_binance_klines(symbol, interval, limit = 240):
-    url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}"
-    response = requests.get(url).json()
+# def get_binance_klines(symbol, interval, limit = 240):
+#     url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}"
+#     response = requests.get(url).json()
 
-    df = pd.DataFrame(response, columns=[
-        "timestamp", "open", "high", "low", "close", "volume", 
-        "close_time", "quote_asset_volume", "num_trades", 
-        "taker_buy_base_asset_volume", "taker_buy_quote_asset_volume", "ignore"
-    ])
+#     df = pd.DataFrame(response, columns=[
+#         "timestamp", "open", "high", "low", "close", "volume", 
+#         "close_time", "quote_asset_volume", "num_trades", 
+#         "taker_buy_base_asset_volume", "taker_buy_quote_asset_volume", "ignore"
+#     ])
 
-    # Convert timestamp to readable datetime
-    df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
+#     # Convert timestamp to readable datetime
+#     df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
     
-    # Keep only necessary columns
-    df = df[["timestamp", "open", "high", "low", "close", "volume"]]
+#     # Keep only necessary columns
+#     df = df[["timestamp", "open", "high", "low", "close", "volume"]]
     
-    # Save to CSV
-    df.to_csv("lazio_1m_data.csv", index=False)
-    print("Data saved to binance_1m_data.csv")
+#     # Save to CSV
+#     df.to_csv("lazio_1m_data.csv", index=False)
+#     print("Data saved to binance_1m_data.csv")
 
     
     
     
     
 
-# Run the function
-get_binance_klines('LAZIOUSDT', '1m')
-file = "lazio_1m_data.csv"
+# # Run the function
+# get_binance_klines('RDNTUSDT', '1m')
+# file = "lazio_1m_data.csv"
+file= "Historical Data/BTCUSDT/11-10-2024/BTCUSDT-1m-2024-11-10-CLEAN.csv"
 
 
 
@@ -61,11 +62,44 @@ class SMACrossStrategy(bt.Strategy):
                 self.sell(size = self.amount)
                 print(f"SELL @ {self.data.close[0]} on {self.data.datetime.date(0)}")
 
+
+
+class RSIStrategy(bt.Strategy):
+    params = (
+        ('high', 70),
+        ('low', 30),
+        ('period', 14)
+    )
+
+    def __init__(self):
+        self.rsi = bt.indicators.RSI(self.data.close, period=self.params.period,upperband=self.params.high, lowerband=self.params.low)
+        self.bought = False
+
+
+
+    def next(self):
+        # print(f"RSI: {self.rsi[0]}")
+        if self.rsi < self.params.low:  # RSI is oversold
+            if not self.bought:  # Only buy if no position exists
+                print("BUY")
+                print(f"RSI: {self.rsi[0]}")
+                self.buy(size=10)
+                self.bought = True
+        elif self.rsi > self.params.high:  # RSI is overbought
+            if self.bought:  # Only sell if a position exists
+                print("SELL")
+                print(f"RSI: {self.rsi[0]}")
+                self.sell(size=10)
+                self.bought = False
+
+
+
 # Initialize Backtrader
 cerebro = bt.Cerebro()
 
 # Add strategy
 cerebro.addstrategy(SMACrossStrategy)
+
 
 # Load data from the CSV file
 data = bt.feeds.GenericCSVData(

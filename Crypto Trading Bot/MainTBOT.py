@@ -149,6 +149,7 @@ def K_line_initialisation(candle_index, ticker):
     return signals
 
 
+
 def K_line_recommendation(signals, candle_index, ticker):
     #converting Bool signal into Integer representation 
     buy_signal_counter = 0 
@@ -181,6 +182,9 @@ def K_line_recommendation(signals, candle_index, ticker):
     print(f"K-Line Signal: {k_line_signal}")
     return k_line_signal
 
+
+
+
 def RSI(symbol_for_anal):
     """gets the RSI value and returns 'STRONG_BUY', 'BUY', 'STRONG_SELL', 'SELL', 'NEUTRAL' """
     
@@ -208,6 +212,8 @@ def RSI(symbol_for_anal):
     print(f"RSI Signal: {RSI_signal}")
     return RSI_signal
 
+
+
 def MACD(symbol_for_anal):
     coin = TA_Handler(
             symbol=symbol_for_anal,
@@ -223,6 +229,8 @@ def MACD(symbol_for_anal):
 
     return curr_macd_macd, curr_macd_signal
     
+
+
 def MACD_analysis(curr_macd_macd, curr_macd_signal, prev_macd_macd, prev_macd_signal):
     """Going to continuously look at and see if cross over occurs but will only give 'BUY' or 'SELL' signals  """
 

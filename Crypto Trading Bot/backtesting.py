@@ -53,6 +53,8 @@ class RSIStrategy(bt.Strategy):
                 self.sell(size=10)
                 self.bought = False
 
+
+
 def main():
     # Create a cerebro entity
     cerebro = bt.Cerebro()
