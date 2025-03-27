@@ -50,7 +50,8 @@ def clean_data(data):
 # # Run the function
 # get_binance_klines('RDNTUSDT', '1m')
 # file = "lazio_1m_data.csv"
-file= "Historical Data/BTCUSDT/25-2-2025/BTCUSDT-1m-2025-02-25-CLEAN.csv"
+clean_data("Historical Data/AIXBTUSDT/AIXBTUSDT-1m-2025-02")
+file= "Historical Data/MOVEUSDT/MOVEUSDT-1m-2025-02-CLEAN.csv"
 
 
 
@@ -58,7 +59,6 @@ file= "Historical Data/BTCUSDT/25-2-2025/BTCUSDT-1m-2025-02-25-CLEAN.csv"
 
 # Define a strategy
 class SMACrossStrategy(bt.Strategy):
-    params = (("fast_period", 5), ("slow_period", 49))  # Set periods for SMAs
 
     def __init__(self, fast_period, slow_period):
         # Define the two SMAs
@@ -85,31 +85,31 @@ class SMACrossStrategy(bt.Strategy):
 
 
 class RSIStrategy(bt.Strategy):
-    params = (
-        ('high', 70),
-        ('low', 30),
-        ('period', 14)
-    )
 
-    def __init__(self):
-        self.rsi = bt.indicators.RSI(self.data.close, period=self.params.period,upperband=self.params.high, lowerband=self.params.low)
+    def __init__(self, low, high):
+        self.low_bound = low
+        self.high_bound = high
+        self.rsi = bt.indicators.RSI(self.data.close, period=14,upperband=self.high_bound, lowerband=self.low_bound)
         self.bought = False
-
-
+        self.amount = 0
+        
 
     def next(self):
         # print(f"RSI: {self.rsi[0]}")
-        if self.rsi < self.params.low:  # RSI is oversold
+        if self.rsi[0] < self.low_bound:  # RSI is oversold
             if not self.bought:  # Only buy if no position exists
-                print("BUY")
-                print(f"RSI: {self.rsi[0]}")
-                self.buy(size=10)
+                # print("BUY @" + self.data.close[0])
+                # print(f"RSI: {self.rsi[0]}")
+                port_size = cerebro.broker.getvalue()
+                curr_price = self.data.close[0]
+                self.amount = port_size / curr_price
+                self.buy(size = self.amount)
                 self.bought = True
-        elif self.rsi > self.params.high:  # RSI is overbought
+        elif self.rsi[0] > self.high_bound:  # RSI is overbought
             if self.bought:  # Only sell if a position exists
-                print("SELL")
-                print(f"RSI: {self.rsi[0]}")
-                self.sell(size=10)
+                # print("SELL")
+                # print(f"RSI: {self.rsi[0]}")
+                self.sell(size=self.amount)
                 self.bought = False
 
 
@@ -118,46 +118,45 @@ class RSIStrategy(bt.Strategy):
 # Initialize Backtrader
 most_profit = [-5000, -1, -1]
 
-for fast in range(1, 11):
-    for slow in range(5, 60):
+for low in range(15, 45):
+    for high in range(60, 99):
         # SMACrossStrategy.params.fast_period = fast
         # SMACrossStrategy.params.slow_period = slow
-        # NOTE: Code is returning the exact same profit for all values of fast and slow. Something is wrong, fix this
 
-        cerebro = bt.Cerebro()
+        if high > low:
+            cerebro = bt.Cerebro()
 
-        # Add strategy
-        cerebro.addstrategy(SMACrossStrategy, fast, slow)
+            # Add strategy
+            cerebro.addstrategy(RSIStrategy, low, high)
 
 
-        # Load data from the CSV file
-        data = bt.feeds.GenericCSVData(
-            dataname= file,  # Path to your CSV file
-            dtformat="%Y-%m-%d %H:%M:%S",    # Format of the timestamp column in your CSV
-            timeframe=bt.TimeFrame.Minutes,   # 1-minute timeframe
-            compression=1,                    # 1-minute compression
-            openinterest=-1                   # Don't use open interest data
-        )
+            # Load data from the CSV file
+            data = bt.feeds.GenericCSVData(
+                dataname= file,  # Path to your CSV file
+                dtformat="%Y-%m-%d %H:%M:%S",    # Format of the timestamp column in your CSV
+                timeframe=bt.TimeFrame.Minutes,   # 1-minute timeframe
+                compression=1,                    # 1-minute compression
+                openinterest=-1                   # Don't use open interest data
+            )
 
-        # Add data to Backtrader
-        cerebro.adddata(data)
+            # Add data to Backtrader
+            cerebro.adddata(data)
 
-        # Set starting cash and commission for trades
-        cerebro.broker.set_cash(5000)
-        cerebro.broker.setcommission(commission=0)
+            # Set starting cash and commission for trades
+            cerebro.broker.set_cash(5000)
+            cerebro.broker.setcommission(commission=0)
 
-        # Run the backtest
-        starting_value = cerebro.broker.getvalue()
-        # print("Starting Portfolio Value:", starting_value)
-        cerebro.run()
-        final_value = cerebro.broker.getvalue()
-        print("Final Portfolio Value:", final_value)
-
-        if ((final_value - starting_value) > most_profit[0]) and (fast < slow):
-            most_profit = [(final_value - starting_value), fast, slow]
+            # Run the backtest
+            starting_value = cerebro.broker.getvalue()
+            # print("Starting Portfolio Value:", starting_value)
+            cerebro.run()
+            final_value = cerebro.broker.getvalue()
+            print(f"Final Portfolio Value: {final_value}. Low: {low}, High: {high}")
+            profit = final_value - starting_value
+            if (profit > most_profit[0]) and (profit != 0):
+                most_profit = [(final_value - starting_value), low, high]
+            # cerebro.plot()
 print(most_profit)
 
 # Plot the results
 # cerebro.plot()
-
-# clean_data("Historical Data/BTCUSDT/27-2-2025/BTCUSDT-1m-2025-02-27")
