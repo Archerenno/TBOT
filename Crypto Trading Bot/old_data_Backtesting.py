@@ -50,8 +50,8 @@ def clean_data(data):
 # # Run the function
 # get_binance_klines('RDNTUSDT', '1m')
 # file = "lazio_1m_data.csv"
-clean_data("Historical Data/AIXBTUSDT/AIXBTUSDT-1m-2025-02")
-file= "Historical Data/MOVEUSDT/MOVEUSDT-1m-2025-02-CLEAN.csv"
+clean_data("Historical Data/PUNDIXUSDT/PUNDIXUSDT-1m-2025-03")
+file= "Historical Data/PUNDIXUSDT/PUNDIXUSDT-1m-2025-03-CLEAN.csv"
 
 
 

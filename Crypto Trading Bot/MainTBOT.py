@@ -558,11 +558,11 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding, k_li
 
 
 def main():
-    symbol = 'PEPEUSDT'
-    minutes = 59
+    symbol = 'BTCUSDT'
+    minutes = 3
     candle_index = -3
     starting_balance = 5000
-    max_holdings = 1000
+    max_holdings = 100
     candle_initialisation = K_line_initialisation(candle_index, symbol)
     k_line_list = [candle_index, candle_initialisation]
     
