@@ -30,7 +30,6 @@ def print_all_available_coins():
     info = client.get_account()
     all_balances = info['balances']
     print("This is a list of all the available coins through Binance")
-    print(all_balances)
     for coin in all_balances:
         print(coin['asset'])
 
@@ -49,7 +48,10 @@ def print_asset_account_balance(symbol):
         if coin['asset'] == short_symbol:
             # The 'free' key in the dictionary says how much of the coin/currency you have available to use/spend
             account_balance = coin['free']
-    print(f"Account balance ({symbol}): {float(account_balance):.4f}")
+            print(f"Account balance ({symbol}): {float(account_balance):.4f}")
+            return True
+    return False
+    
 
 
 def get_curr_asset_balance(symbol):
@@ -95,15 +97,7 @@ def RSI(symbol_for_anal):
     # Initialises RSI value to Neutral
     RSI_signal = recommendation_dict["NEUTRAL"]
 
-    coin = TA_Handler(
-            symbol=symbol_for_anal,
-            screener="crypto",
-            exchange="BINANCE",
-            interval=Interval.INTERVAL_1_MINUTE
-        )
-    
-    analysis = coin.get_analysis()   
-    RSI_value =  analysis.indicators["RSI"]
+    RSI_value = calculate_RSI(symbol_for_anal)
 
     if RSI_value <= 31:
         RSI_signal = recommendation_dict["BUY"]
@@ -113,6 +107,33 @@ def RSI(symbol_for_anal):
 
     print(f"RSI Signal: {RSI_value:.2f}")
     return RSI_signal
+
+
+def calculate_RSI(symbol: str, interval: str = "1m", length: int = 14, limit: int = 1000) -> float:
+    """
+    RSI using Wilder's smoothing (matches Binance/TradingView more closely).
+    """
+    klines = client.get_klines(symbol=symbol, interval=interval, limit=limit)
+    df = pd.DataFrame(klines, columns=[
+        "time","open","high","low","close","volume",
+        "c1","c2","c3","c4","c5","c6"
+    ])
+    df["close"] = df["close"].astype(float)
+
+    delta = df["close"].diff()
+    gain = delta.where(delta > 0, 0.0)
+    loss = -delta.where(delta < 0, 0.0)
+
+    # Wilder’s smoothing (EMA with alpha=1/length)
+    avg_gain = gain.ewm(alpha=1/length, min_periods=length, adjust=False).mean()
+    avg_loss = loss.ewm(alpha=1/length, min_periods=length, adjust=False).mean()
+
+    rs = avg_gain / avg_loss
+    rsi = 100 - (100 / (1 + rs))
+
+    return float(rsi.iloc[-1])
+
+
 
 
 def get_last_order_price(symbol):
@@ -166,6 +187,8 @@ def valid_order_amount(quantity, symbol, sell_or_buy):
         notional_order_valid = True
     else:
         notional_order_valid = False
+        if notional_value == 0:
+            raise CoinPriceZeroError
 
     if notional_order_valid is True and lot_order_valid is True:
         order_valid = True
@@ -255,63 +278,129 @@ def get_holding_coin(symbol):
     return curr_holding['free']
 
 
+def volatile_sort(usdt_tickers):
+    result = []
+    for ticker in usdt_tickers:
+        symbol = ticker['symbol']
+        try:
+            data = client.get_klines(symbol=symbol, interval=client.KLINE_INTERVAL_1MINUTE, limit=1)
+            # Use latest candle’s quote asset volume (index 7)
+            quote_volume = float(data[0][7])
+            curr_price = float(get_current_price(symbol=symbol))
+            volatility_ratio = quote_volume/curr_price
+            result.append((symbol, volatility_ratio))
+        except ZeroDivisionError:
+            return sorted(result, key=lambda p: p[1], reverse=True)
+        except Exception as e:
+            print(f"Skipping {symbol}: {e}")
+            continue
+    
+    return sorted(result, key=lambda p: p[1], reverse=True)
 
-def find_coin():
+
+def find_coin(banned_coins):
+    """Iterates through all the coins, selecting the first one which has an RSI value which is sufficiently low"""
     coin_found = False
     ticker_stats = client.get_all_tickers()
     usdt_only = [ticker for ticker in ticker_stats if ticker['symbol'].endswith('USDT')]
-    sorted_by_price = sorted(usdt_only, key=lambda p:float(p['price']), reverse=True)
-    for ticker in sorted_by_price:
-        if RSI(ticker['symbol']) == 1:
-            print(f"Coin chose: {ticker}")
-            coin_found = True
-            return True, ticker['symbol']
+    sorted_usdt = sorted(usdt_only, key=lambda p: float(p['price']), reverse=True)
+    sorted_by_volatility = volatile_sort(sorted_usdt)
+    for ticker, volatility in sorted_by_volatility:
+        try:
+            rsi = RSI(ticker)
+            print(f"Coin: {ticker}, Tit's Up Potential: {volatility}")
+            if (ticker not in banned_coins) and (rsi == 1):
+                curr_asking_price = client.get_orderbook_ticker(symbol=ticker)['askPrice']
+                if (float(curr_asking_price) > 0):
+                    print(f"Coin picked: {ticker}")
+                    coin_found = True
+                    return ticker
+        except Exception: #Accepts the case where the symbol is not found
+            print(f"Could not find {ticker} in tradingview")
+            continue
     if coin_found is False:
         print(f"No coin is currently a good buy according to the RSI finder")
-        return False, None
+        sys.exit()
         
+
 
 
 def run_bot(operating_mins, starting_symbol, starting_balance, max_holding):
     symbol = starting_symbol
     MAX_HOLDING_VALUE = max_holding
+    TIME_LIMIT = 20
     holding_coin = 0
     position = False
     account_balance = starting_balance
+    banned_coins = []
 
     print_asset_account_balance("USDT")
-    print_asset_account_balance(symbol)
+
+    balance = print_asset_account_balance(symbol)
+    while balance is False and symbol:
+        print(f"{symbol} not currently available to purchase")
+        symbol = find_coin(banned_coins)
+        balance = print_asset_account_balance(symbol)
+
+    curr_coin_time = 0
+    
     # This for loop will loop every minute
 
 
     for i in range(operating_mins):
         print(f"Minute {i}")
+        curr_coin_time += 1
 
         current_price = get_current_price(symbol)
         holding_coin = get_curr_asset_balance(get_short_symbol(symbol))
 
         holding_value = holding_coin * float(current_price)
 
-        if holding_value < 0.9 * starting_balance:
-            print("Current loss greater than 10%, selling all assets")
-            final_sell(symbol, account_balance, holding_coin, starting_balance)
-            return
+
+        if position is True and holding_value < 0.9 * starting_balance:
+            print("Current loss greater than 10%, exiting position")
+            account_balance = final_sell(symbol, account_balance, holding_coin, starting_balance)
+            position = False
+            banned_coins.append(symbol)
+            symbol = find_coin(banned_coins)
+            curr_coin_time = 0
+            continue
+
+
+        if (curr_coin_time >= TIME_LIMIT):
+            print("Current coin time limit reached")
+            if position is True:
+                account_balance = final_sell(symbol, account_balance, holding_coin, starting_balance)
+                position = False
+            banned_coins.append(symbol)
+            symbol = find_coin(banned_coins)
+            curr_coin_time = 0
+            continue
+                
 
         rsi = RSI(symbol)
 
         if position is False and rsi == 1:
             buy_quantity = MAX_HOLDING_VALUE
             coin_quantity = buy_quantity / float(get_current_price(symbol))
-            account_balance, order_price = place_market_order(symbol, 'BUY', coin_quantity, account_balance)
-            if order_price != -1:
-                print(f"Bought {coin_quantity} of {symbol} at ${order_price}")
-                holding_coin += coin_quantity
-                position = True
-            else:
-                print("Buy order is too small!")
-                # The amount of coin that is being held with the newly bought coin
+            try:
+                account_balance, order_price = place_market_order(symbol, 'BUY', coin_quantity, account_balance)
+                if order_price != -1:
+                    print(f"Bought {coin_quantity} of {symbol} at ${order_price}")
+                    holding_coin += coin_quantity
+                    position = True
+                else:
+                    print("Buy order is too small!")
+                    # The amount of coin that is being held with the newly bought coin
+            except CoinPriceZeroError:
+                print(f"Current asking price for {symbol} is $0. Switching coin now")
+                banned_coins.append(symbol)
+                symbol = find_coin(banned_coins)
+                curr_coin_time = 0
+                continue
+
         
-        elif position is True and rsi == -1:
+        elif (position is True and rsi == -1):
             sell_quantity = holding_coin
             account_balance, order_price = place_market_order(symbol, 'SELL', sell_quantity, account_balance)
             if order_price != -1:
@@ -320,11 +409,14 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding):
                 position = False
             else:
                 print("Sell amount too small!")
-                position = False
+
 
         elif position is False and rsi == -1:
             print("rsi is high & no current position. Switching coins")
-            symbol = find_coin()
+            symbol = find_coin(banned_coins)
+            curr_coin_time = 0
+            if symbol is None:
+                return
             position = False
        
             
@@ -343,15 +435,12 @@ def run_bot(operating_mins, starting_symbol, starting_balance, max_holding):
 
 
 def main():
-    symbol = find_coin()
-    if symbol[0] is True:
-        minutes = 5
+    banned_coins = []
+    symbol = find_coin(banned_coins)
+    if symbol is not None:
+        minutes = 210
         starting_balance = get_curr_asset_balance('USDT')
         max_holdings = starting_balance
-        run_bot(minutes, symbol[1], starting_balance, max_holdings)
-    else:
-        print("No coin found under RSI value at this moment")
-
+        run_bot(minutes, symbol, starting_balance, max_holdings)
 
 main()
-# find_coin()
