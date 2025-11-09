@@ -2,11 +2,15 @@ import pandas as pd
 import numpy as np
 from binance.client import Client
 import matplotlib.pyplot as plt
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 # Binance API setup (Set your API key & secret here)
-API_KEY = 'QYHKtmBofXUNuHBJ352DG2jSAm9nz512wtDzteeKHvvGuFCXnJgw92xCbBiHJHfb'
-API_SECRET = 'hSjOPnrSNzwZW592nhil2sBFpvEK24szznBOGIULGClSFfoNmDoOjfUNAYO2NPES'
+API_KEY = os.getenv("API_PUBLIC")
+API_SECRET = os.getenv("API_PRIVATE")
 
 # Base URL for Binance Testnet
 testnet_url = 'https://testnet.binance.vision/api'

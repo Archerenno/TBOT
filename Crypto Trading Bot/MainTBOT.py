@@ -13,16 +13,13 @@ import time
 import numpy as np
 import math
 import os
+from dotenv import load_dotenv
 
-# Testnet API credentials
-# # KODI'S KEYS
-API_KEY = 'rJljPrYroAaNOHIKfy0WJk2xWo9aeAjPsL5YSp2O6JQUTW8E5PU3aIz0hdeX7tO7'
-API_SECRET = 'aO0F2T3epauKW9GQGRj4Wlb8zxtCabFXHRE3e3f1nrgANl0FNTMCSkZYQfE6SzT3'
+load_dotenv()
 
 
-# ARCHERS KEY'S
-#API_KEY = 'QYHKtmBofXUNuHBJ352DG2jSAm9nz512wtDzteeKHvvGuFCXnJgw92xCbBiHJHfb'
-#API_SECRET = 'hSjOPnrSNzwZW592nhil2sBFpvEK24szznBOGIULGClSFfoNmDoOjfUNAYO2NPES'
+API_KEY = os.getenv("API_PUBLIC")
+API_SECRET = os.getenv("API_PRIVATE")
 
 # Base URL for Binance Testnet
 testnet_url = 'https://testnet.binance.vision/api'
@@ -450,7 +447,7 @@ def initialise_file():
     curr_day = time_str[0:11]
     curr_year = time_str[-4:]
     curr_date = curr_day + curr_year
-    folder_path = '/Users/kodi/Desktop/Everything TBOT/Testing read and write files /TBOT files'
+    folder_path = 'Crypto Trading Bot/testRecord'
     file_path = os.path.join(folder_path, f"{curr_date}.txt")
     with open(file_path, "w") as file: 
         file.writelines("COIN, ACTION, PRICE, QUANTITY, TIMESTAMP, EMA, K-LINE, RSI, MACD ")
